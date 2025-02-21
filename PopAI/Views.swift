@@ -1,22 +1,44 @@
 import SwiftUI
 
-struct ConversationView: View {
-    @State private var conversation: String = """
-PopAI, what is the current depth?
+struct Interaction: Identifiable {
+    let id = UUID()
+    let request: String
+    let response: String?
+}
 
-2.1 feet
-"""
+struct ConversationView: View {
+    @State private var conversations: [Interaction] = [
+        Interaction(request: "PopAI, what is the current depth?", response: "2.1 feet"),
+        Interaction(request: "PopAI, what is my depth?", response: "2.2 feet"),
+        Interaction(request: "PopAI, draft please?", response: "1.9 feet"),
+    ]
     @State private var listening: Bool = false
 
     var body: some View {
         NavigationStack {
             VStack {
-                Text(conversation)
-                    .font(.largeTitle)
-                    .padding()
-                    .frame(
-                        maxWidth: .infinity, maxHeight: .infinity,
-                        alignment: .topLeading)
+                ScrollView(.vertical) {
+                    LazyVStack(alignment: .leading, spacing: 8) {
+                        ForEach(conversations) { conversation in
+                            Text(conversation.request)
+                                .font(.largeTitle)
+                                .padding()
+                                .foregroundColor(Color.secondary)
+                                .frame(
+                                    maxWidth: .infinity, maxHeight: .infinity,
+                                    alignment: .topLeading)
+                            if let response = conversation.response {
+                                Text(response)
+                                    .font(.largeTitle)
+                                    .padding([.horizontal, .bottom])
+                                    .frame(
+                                        maxWidth: .infinity, maxHeight: .infinity,
+                                        alignment: .topLeading)
+                            }
+                            Divider().padding()
+                        }
+                    }
+                }
                 HStack {
                     Button(action: {
                         listening = !listening
