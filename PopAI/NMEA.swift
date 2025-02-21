@@ -1,6 +1,12 @@
 import Foundation
 
-class NMEA {
+class NMEA: ObservableObject {
+    struct State {
+        var draft: Meters?
+    }
+
+    @Published var state: State
+
     public static let sampleData = """
         $YDGSV,3,1,12,06,19,043,38,11,53,045,41,12,76,144,48,20,48,106,45*75
         $YDGSV,3,2,12,24,10,199,43,25,59,305,43,29,31,287,46,05,31,152,43*7A
@@ -46,4 +52,139 @@ class NMEA {
         !AIVDM,1,1,,B,403OtVQvTWP2koCklLEpHDg028Mw,0*6B
         !AIVDM,1,1,,A,15MiuGPP5bG?NqlEd2AmUww`0<28,0*44
         """
+
+    init(state: State = State()) {
+        self.state = state
+    }
+
+    enum ProcessingError: Error {
+        case unrecognizedEncoding
+        case checksumNotFound
+        case missingEnding
+        case malformedChecksum
+        case invalidChecksum
+    }
+
+    func processSentence(_ sentence: String) throws {
+        enum Format {
+            case conventional
+            case encapsulated
+        }
+
+        let format =
+            switch sentence.prefix(1) {
+            case "$":
+                Format.conventional
+            case "!":
+                Format.encapsulated
+            default:
+                throw ProcessingError.unrecognizedEncoding
+            }
+
+        let sentenceParts = sentence.dropFirst(1).split(separator: "*")
+        guard sentenceParts.count == 2 else {
+            throw ProcessingError.checksumNotFound
+        }
+
+        let (payload, trailer) = (sentenceParts[0], sentenceParts[1])
+        guard trailer.hasSuffix("\r\n") else {
+            throw ProcessingError.missingEnding
+        }
+
+        // Swift treats \r\n as a single character
+        let sumStr = trailer.dropLast(1)
+        guard sumStr.count == 2 else {
+            throw ProcessingError.malformedChecksum
+        }
+
+        guard let sum = UInt8(sumStr, radix: 16) else {
+            throw ProcessingError.malformedChecksum
+        }
+
+        guard sum == payload.utf8.reduce(0, ^) else {
+            print("expected: \(sum), got \(payload.utf8.reduce(0, ^))")
+            throw ProcessingError.invalidChecksum
+        }
+
+        switch format {
+        case Format.conventional:
+            try processConventionalSentencePayload(payload)
+        case Format.encapsulated:
+            try processEncapsulatedSentencePayload(payload)
+        }
+    }
+
+    private func processConventionalSentencePayload(_ payload: Substring)
+        throws
+    {
+        let fields = payload.split(
+            separator: ",", omittingEmptySubsequences: false)
+
+        switch fields.first {
+        case "DBT", "YDDBS":
+            try processTransducerDepth(fields.dropFirst())
+        default:
+            print("unrecognized sencence: \(payload)")
+        }
+    }
+
+    private func processEncapsulatedSentencePayload(_ payload: Substring)
+        throws
+    {
+
+    }
+
+    private func processTransducerDepth(_ fields: ArraySlice<Substring>)
+        throws
+    {
+        var feet: Feet? = nil
+        var meters: Meters? = nil
+        var fathoms: Fathoms? = nil
+
+        guard fields.count == 6 else {
+            print("expected 6 fields, but found \(fields.count)")
+            return
+        }
+
+        for pair in stride(from: fields.startIndex, to: fields.endIndex, by: 2)
+        {
+            let measurement = fields[pair]
+            let unit = fields[pair.advanced(by: 1)]
+
+            guard let measurement = Double(measurement) else {
+                print("malformed measurement: \(measurement)")
+                continue
+            }
+
+            switch unit {
+            case "f":
+                feet = Feet(measurement)
+            case "M":
+                meters = Meters(measurement)
+            case "F":
+                fathoms = Fathoms(measurement)
+            default:
+                print("unrecognized transducer depth unit: \(unit)")
+            }
+        }
+
+        switch (feet, meters, fathoms) {
+        case let (feet?, meters?, fathoms?):
+            state.draft = min(feet.inMeters, meters, fathoms.inMeters)
+        case let (feet?, meters?, nil):
+            state.draft = min(feet.inMeters, meters)
+        case let (feet?, nil, fathoms?):
+            state.draft = min(feet.inMeters, fathoms.inMeters)
+        case let (feet?, nil, nil):
+            state.draft = feet.inMeters
+        case let (nil, meters?, fathoms?):
+            state.draft = min(meters, fathoms.inMeters)
+        case let (nil, meters?, nil):
+            state.draft = meters
+        case let (nil, nil, fathoms?):
+            state.draft = fathoms.inMeters
+        case (nil, nil, nil):
+            print("no measurements found")
+        }
+    }
 }

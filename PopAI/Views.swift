@@ -7,8 +7,10 @@ struct Interaction: Identifiable {
 }
 
 struct ConversationView: View {
+    @EnvironmentObject var nmea: NMEA
     @State private var conversations: [Interaction] = [
-        Interaction(request: "PopAI, what is the current depth?", response: "2.1 feet"),
+        Interaction(
+            request: "PopAI, what is the current depth?", response: "2.1 feet"),
         Interaction(request: "PopAI, what is my depth?", response: "2.2 feet"),
         Interaction(request: "PopAI, draft please?", response: "1.9 feet"),
     ]
@@ -32,7 +34,8 @@ struct ConversationView: View {
                                     .font(.largeTitle)
                                     .padding([.horizontal, .bottom])
                                     .frame(
-                                        maxWidth: .infinity, maxHeight: .infinity,
+                                        maxWidth: .infinity,
+                                        maxHeight: .infinity,
                                         alignment: .topLeading)
                             }
                             Divider().padding()
@@ -53,7 +56,9 @@ struct ConversationView: View {
                             .cornerRadius(10)
                             .padding(.horizontal)
                     }
-                    NavigationLink(destination: SettingsView()) {
+                    NavigationLink(
+                        destination: SettingsView().environmentObject(nmea)
+                    ) {
                         Image(systemName: "gearshape.fill")
                             .resizable()
                             .frame(width: 30, height: 30)
@@ -69,6 +74,7 @@ struct ConversationView: View {
 }
 
 struct SettingsView: View {
+    @EnvironmentObject var nmea: NMEA
     @State private var enableLogging: Bool = true
     @State private var nmeaAddress: String = "192.168.4.1:1456"
     @State private var nmeaSource: NMEASource = NMEASource.TCP
@@ -77,9 +83,9 @@ struct SettingsView: View {
     var body: some View {
         Form {
             Section(header: Text("Units")) {
-                Picker("Draft", selection: $draftUnit) {
-                    Text("Metric").tag(Unit.Metric)
-                    Text("USCS (\"Imperial\")").tag(Unit.USCS)
+                Picker("Draft", selection: $settings.units) {
+                    Text("Metric").tag(Units.Metric)
+                    Text("USCS (\"Imperial\")").tag(Units.USCS)
                 }
             }
             Section(header: Text("NMEA")) {
@@ -99,6 +105,19 @@ struct SettingsView: View {
                     Text("View log")
                 }.disabled(!enableLogging)
             }
+            Section(header: Text("Boat")) {
+                HStack {
+                    Text("Draft")
+                    Spacer()
+                    Text(
+                        nmea.state.draft == nil
+                            ? ""
+                            : draftUnit == .Metric
+                                ? "\(String(format: "%0.2f", nmea.state.draft!.value)) m"
+                                : "\(nmea.state.draft!.inFeet.feet)' \(nmea.state.draft!.inFeet.inches)\""
+                    )
+                }
+            }
         }
         .navigationTitle("Settings")
     }
@@ -117,5 +136,6 @@ struct LogsView: View {
 }
 
 #Preview {
-    ConversationView()
+    ConversationView().environmentObject(
+        NMEA(state: NMEA.State(draft: Meters(1))))
 }
