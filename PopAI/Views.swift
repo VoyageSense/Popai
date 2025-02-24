@@ -1,61 +1,36 @@
 import SwiftUI
 
-struct Interaction: Identifiable {
-    let id = UUID()
-    let request: String
-    let response: String?
-}
-
 struct ConversationView: View {
     @EnvironmentObject var nmea: NMEA
-    @State private var conversations: [Interaction] = [
-        Interaction(
-            request: "PopAI, what is the current depth?", response: "2.1 feet"),
-        Interaction(request: "PopAI, what is my depth?", response: "2.2 feet"),
-        Interaction(request: "PopAI, draft please?", response: "1.9 feet"),
-    ]
-    @State private var listening: Bool = false
+    @EnvironmentObject var conversation: Conversation
 
     var body: some View {
         NavigationStack {
             VStack {
-                ScrollView(.vertical) {
-                    LazyVStack(alignment: .leading, spacing: 8) {
-                        ForEach(conversations) { conversation in
-                            Text(conversation.request)
-                                .font(.largeTitle)
-                                .padding()
-                                .foregroundColor(Color.secondary)
-                                .frame(
-                                    maxWidth: .infinity, maxHeight: .infinity,
-                                    alignment: .topLeading)
-                            if let response = conversation.response {
-                                Text(response)
-                                    .font(.largeTitle)
-                                    .padding([.horizontal, .bottom])
-                                    .frame(
-                                        maxWidth: .infinity,
-                                        maxHeight: .infinity,
-                                        alignment: .topLeading)
-                            }
-                            Divider().padding()
-                        }
-                    }
-                }
+                conversations
                 HStack {
                     Button(action: {
-                        listening = !listening
+                        conversation.toggleListening()
                     }) {
-                        Text((listening ? "Stop" : "Start") + " Listening")
-                            .frame(maxWidth: .infinity)
-                            .padding()
-                            .background(
-                                listening ? Color.secondary : Color.blue
-                            )
-                            .foregroundColor(Color.white)
-                            .cornerRadius(10)
-                            .padding(.horizontal)
+                        Text(
+                            conversation.isEnabled
+                                ? ((conversation.isListening ? "Stop" : "Start")
+                                    + " Listening")
+                                : "Speech recognition disabled"
+                        )
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(
+                            conversation.isEnabled
+                                ? (conversation.isListening
+                                    ? Color.secondary : Color.blue)
+                                : Color.red
+                        )
+                        .foregroundColor(Color.white)
+                        .cornerRadius(10)
+                        .padding(.horizontal)
                     }
+                    .disabled(!conversation.isEnabled)
                     NavigationLink(
                         destination: SettingsView().environmentObject(nmea)
                     ) {
@@ -68,6 +43,34 @@ struct ConversationView: View {
                 }
                 .padding(.horizontal)
                 .padding(.bottom)
+            }
+        }
+    }
+
+    @ViewBuilder
+    var conversations: some View {
+        ScrollView(.vertical) {
+            LazyVStack(alignment: .leading, spacing: 8) {
+                if conversation.listeningForFirst {
+                    Text("PopAI, ...")
+                        .font(.largeTitle)
+                        .padding()
+                        .foregroundColor(Color.secondary)
+                } else {
+                    ForEach(conversation.pastInteractions) { interaction in
+                        Text(interaction.request)
+                            .font(.largeTitle)
+                            .padding()
+                            .foregroundColor(Color.secondary)
+                        Text(interaction.response)
+                            .font(.largeTitle)
+                            .padding([.horizontal, .bottom])
+                        Divider().padding()
+                    }
+                    Text(conversation.currentRequest)
+                        .font(.largeTitle)
+                        .padding()
+                }
             }
         }
     }
@@ -136,6 +139,22 @@ struct LogsView: View {
 }
 
 #Preview {
-    ConversationView().environmentObject(
-        NMEA(state: NMEA.State(draft: Meters(1))))
+    ConversationView()
+        .environmentObject(
+            NMEA(state: NMEA.State(draft: Meters(1)))
+        ).environmentObject(
+            Conversation(
+                enabled: true,
+                currentRequest: "PopAI, what is",
+                pastInteractions: [
+                    Conversation.Interaction(
+                        request: "PopAI, what is the current depth?",
+                        response: "2.1 feet"),
+                    Conversation.Interaction(
+                        request: "PopAI, what is my depth?",
+                        response: "2.2 feet"),
+                    Conversation.Interaction(
+                        request: "PopAI, what's the draft?",
+                        response: "1.9 feet"),
+                ]))
 }

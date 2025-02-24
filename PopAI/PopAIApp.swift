@@ -13,20 +13,28 @@ enum Units: String {
 @main
 struct PopAIApp: App {
     @StateObject var nmea = NMEA()
+    @StateObject var conversation = Conversation()
 
     var body: some Scene {
         WindowGroup {
-            ConversationView().environmentObject(nmea).onAppear {
-                // TODO: testing out the parsing
-                DispatchQueue.main.asyncAfter(deadline: .now() + 10) {
-                    do {
-                        try nmea.processSentence(
-                            "$YDDBS,7.9,f,2.41,M,1.31,F*01\r\n")
-                    } catch {
-                        print("failed to process sentence: \(error)")
+            ConversationView()
+                .environmentObject(nmea)
+                .environmentObject(conversation)
+                .onAppear {
+                    conversation.enableSpeech { (request: Conversation.Request) -> String in
+                        return "I don't know"
+                    }
+
+                    // TODO: testing out the parsing
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 10) {
+                        do {
+                            try nmea.processSentence(
+                                "$YDDBS,7.9,f,2.41,M,1.31,F*01\r\n")
+                        } catch {
+                            print("failed to process sentence: \(error)")
+                        }
                     }
                 }
-            }
         }
     }
 }
