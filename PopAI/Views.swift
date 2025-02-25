@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct ConversationView: View {
+    @EnvironmentObject var appLog: Log
     @EnvironmentObject var nmea: NMEA
     @EnvironmentObject var conversation: Conversation
 
@@ -32,7 +33,9 @@ struct ConversationView: View {
                     }
                     .disabled(!conversation.isEnabled)
                     NavigationLink(
-                        destination: SettingsView().environmentObject(nmea)
+                        destination: SettingsView()
+                            .environmentObject(nmea)
+                            .environmentObject(appLog)
                     ) {
                         Image(systemName: "gearshape.fill")
                             .resizable()
@@ -78,7 +81,7 @@ struct ConversationView: View {
 
 struct SettingsView: View {
     @EnvironmentObject var nmea: NMEA
-    @State private var enableLogging: Bool = true
+    @EnvironmentObject var appLog: Log
     @State private var nmeaAddress: String = "192.168.4.1:1456"
     @State private var nmeaSource: NMEASource = NMEASource.TCP
     @State private var draftUnit: Unit = Unit.USCS
@@ -101,12 +104,11 @@ struct SettingsView: View {
                     .disabled(nmeaSource == NMEASource.SampleData)
                     .foregroundStyle(
                         nmeaSource == NMEASource.TCP ? .primary : .secondary)
-            }
-            Section(header: Text("Logging")) {
-                Toggle("Enable", isOn: $enableLogging)
-                NavigationLink(destination: LogsView()) {
-                    Text("View log")
-                }.disabled(!enableLogging)
+                NavigationLink(
+                    destination: LogView("nmea").environmentObject(nmea.log)
+                ) {
+                    Text("Log")
+                }
             }
             Section(header: Text("Boat")) {
                 HStack {
@@ -121,27 +123,86 @@ struct SettingsView: View {
                     )
                 }
             }
+            Section(header: Text("App")) {
+                NavigationLink(
+                    destination: LogView("popai").environmentObject(appLog)
+                ) {
+                    Text("Log")
+                }
+            }
         }
         .navigationTitle("Settings")
     }
 }
 
-struct LogsView: View {
-    @State private var logs: String = NMEA.sampleData
-    @State private var expandAIS: Bool = false
+struct LogView: View {
+    @EnvironmentObject var log: Log
+    @State private var showFileExporter = false
+    @State private var showAlert = false
+    @State private var lastError = ""
+    private let name: String
+
+    init(_ name: String) {
+        self.name = name
+    }
+
+    var defaultFilename: String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MMddyyyy_HHmmss"
+        let timestamp = formatter.string(from: Date())
+        return "\(name)_\(timestamp).txt"
+    }
 
     var body: some View {
-        ScrollView([.horizontal, .vertical]) {
-            Text(logs)
-                .padding()
+        VStack {
+            GeometryReader { geometry in
+                ScrollView([.horizontal, .vertical]) {
+                    Text(log.entries.joined(separator: "\n"))
+                        .padding()
+                        .frame(
+                            minWidth: geometry.size.width,
+                            minHeight: geometry.size.height,
+                            alignment: .topLeading)
+                }
+            }
+            Button(action: {
+                showFileExporter = true
+            }) {
+                Text("Save and reset log...")
+                    .padding()
+            }
+            .fileExporter(
+                isPresented: $showFileExporter,
+                document: log,
+                contentType: .plainText,
+                defaultFilename: defaultFilename
+            ) { result in
+                switch result {
+                case .success(let url):
+                    PopAI.log("NMEA logs saved to \(url)")
+                    log.reset()
+                case .failure(let error):
+                    lastError = error.localizedDescription
+                    showAlert = true
+                    PopAI.log("Failed to save NMEA logs to: \(lastError)")
+                }
+            }
+            .alert(isPresented: $showAlert) {
+                Alert(
+                    title: Text("Error"),
+                    message: Text(lastError),
+                    dismissButton: .default(Text("OK"))
+                )
+            }
         }
     }
 }
 
 #Preview {
     ConversationView()
+        .environmentObject(Log(entries: ["started app"]))
         .environmentObject(
-            NMEA(state: NMEA.State(draft: Meters(1)))
+            NMEA(state: NMEA.State(draft: Meters(1)), log: NMEA.sampleData)
         ).environmentObject(
             Conversation(
                 enabled: true,

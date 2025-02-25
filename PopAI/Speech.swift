@@ -53,13 +53,13 @@ class Conversation: NSObject, ObservableObject, SFSpeechRecognitionTaskDelegate
                     self.isEnabled = true
                 }
             case .denied:
-                print("denied access to speech recognition")
+                PopAI.log("Denied access to speech recognition")
             case .restricted:
-                print("speech recognition restricted on this device")
+                PopAI.log("Speech recognition restricted on this device")
             case .notDetermined:
-                print("speech recognition not yet authorized")
+                PopAI.log("Speech recognition not yet authorized")
             @unknown default:
-                print("unknown issue with speech recognition")
+                PopAI.log("Unknown issue with speech recognition")
             }
         }
     }
@@ -71,7 +71,7 @@ class Conversation: NSObject, ObservableObject, SFSpeechRecognitionTaskDelegate
             do {
                 try startListening()
             } catch {
-                print("failed to start listening: \(error)")
+                PopAI.log("Failed to start listening: \(error)")
             }
         }
     }
@@ -142,7 +142,7 @@ class Conversation: NSObject, ObservableObject, SFSpeechRecognitionTaskDelegate
     }
 
     private func say(_ message: String) {
-        print("saying '\(message)'")
+        PopAI.log("Saying '\(message)'")
     }
 
     // MARK: SFSpeechRecognitionTaskDelegate
@@ -162,7 +162,7 @@ class Conversation: NSObject, ObservableObject, SFSpeechRecognitionTaskDelegate
             do {
                 try startListening()
             } catch {
-                print("failed to re-start listening: \(error)")
+                PopAI.log("Failed to re-start listening: \(error)")
             }
         }
     }

@@ -18,10 +18,14 @@ struct PopAIApp: App {
     var body: some Scene {
         WindowGroup {
             ConversationView()
+                .environmentObject(Log.global)
                 .environmentObject(nmea)
                 .environmentObject(conversation)
                 .onAppear {
-                    conversation.enableSpeech { (request: Conversation.Request) -> String in
+                    log("Started app")
+
+                    conversation.enableSpeech {
+                        (request: Conversation.Request) -> String in
                         return "I don't know"
                     }
 
@@ -30,8 +34,10 @@ struct PopAIApp: App {
                         do {
                             try nmea.processSentence(
                                 "$YDDBS,7.9,f,2.41,M,1.31,F*01\r\n")
+                            try nmea.processSentence(
+                                "$BLAH,7.9,f,2.41,M,1.31,F*4E\r\n")
                         } catch {
-                            print("failed to process sentence: \(error)")
+                            log("Failed to process sentence: \(error)")
                         }
                     }
                 }
