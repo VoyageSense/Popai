@@ -84,18 +84,6 @@ struct PopAIApp: App {
                             }
                         }
                     }
-
-                    // TODO: testing out the parsing
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 10) {
-                        do {
-                            try nmea.processSentence(
-                                "$YDDBS,7.9,f,2.41,M,1.31,F*01\r\n")
-                            try nmea.processSentence(
-                                "$BLAH,7.9,f,2.41,M,1.31,F*4E\r\n")
-                        } catch {
-                            log("Failed to process sentence: \(error)")
-                        }
-                    }
                 }
         }
     }
