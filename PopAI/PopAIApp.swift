@@ -62,7 +62,25 @@ struct PopAIApp: App {
 
                     conversation.enableSpeech {
                         (request: Conversation.Request) -> String in
-                        return "I don't know"
+                        switch request {
+                        case Conversation.Request.Draft:
+                            switch settings.draftUnits {
+                            case .Metric:
+                                if let meters = nmea.state.draft?.value {
+                                    return String(format: "%.1f meters", meters)
+                                } else {
+                                    return "I don't know"
+                                }
+                            case .USCS:
+                                if let feet = nmea.state.draft?.inFeet {
+                                    return String(
+                                        format: "%d feet, %d inches", feet.feet,
+                                        feet.inches)
+                                } else {
+                                    return "I don't know"
+                                }
+                            }
+                        }
                     }
 
                     // TODO: testing out the parsing
