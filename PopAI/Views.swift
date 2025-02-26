@@ -15,7 +15,7 @@ struct ConversationView: View {
                     }) {
                         Text(
                             conversation.isEnabled
-                                ? ((conversation.isListening ? "Stop" : "Start")
+                                ? ((conversation.isOngoing ? "Stop" : "Start")
                                     + " Listening")
                                 : "Speech recognition disabled"
                         )
@@ -23,7 +23,7 @@ struct ConversationView: View {
                         .padding()
                         .background(
                             conversation.isEnabled
-                                ? (conversation.isListening
+                                ? (conversation.isOngoing
                                     ? Color.secondary : Color.blue)
                                 : Color.red
                         )

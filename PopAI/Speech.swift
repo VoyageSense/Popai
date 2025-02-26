@@ -1,6 +1,7 @@
 import Speech
 
-class Conversation: NSObject, ObservableObject, SFSpeechRecognitionTaskDelegate
+class Conversation: NSObject, ObservableObject, SFSpeechRecognitionTaskDelegate,
+    AVSpeechSynthesizerDelegate
 {
     class Interaction: Identifiable {
         let id = UUID()
@@ -22,15 +23,20 @@ class Conversation: NSObject, ObservableObject, SFSpeechRecognitionTaskDelegate
 
     @Published var isEnabled: Bool
     @Published var isListening: Bool = false
+    @Published var isTalking: Bool = false
     @Published var currentRequest: String = ""
     @Published var pastInteractions: [Interaction]
     var listeningForFirst: Bool {
         currentRequest.isEmpty && pastInteractions.isEmpty && isListening
     }
+    var isOngoing: Bool {
+        return isListening || isTalking
+    }
 
     private let audioEngine = AVAudioEngine()
     private let speechRecognizer = SFSpeechRecognizer(
         locale: Locale(identifier: "en-US"))!
+    private let speechSynthesizer = AVSpeechSynthesizer()
     private var recognitionRequest: SFSpeechAudioBufferRecognitionRequest?
     private var recognitionTask: SFSpeechRecognitionTask?
     private var requestHandler: RequestHandler?
@@ -46,6 +52,7 @@ class Conversation: NSObject, ObservableObject, SFSpeechRecognitionTaskDelegate
 
     func enableSpeech(_ handler: @escaping RequestHandler) {
         requestHandler = handler
+        speechSynthesizer.delegate = self
         SFSpeechRecognizer.requestAuthorization { authStatus in
             switch authStatus {
             case .authorized:
@@ -65,7 +72,9 @@ class Conversation: NSObject, ObservableObject, SFSpeechRecognitionTaskDelegate
     }
 
     func toggleListening() {
-        if isListening {
+        if isTalking {
+            isTalking = false
+        } else if isListening {
             stopListening()
         } else {
             do {
@@ -142,7 +151,11 @@ class Conversation: NSObject, ObservableObject, SFSpeechRecognitionTaskDelegate
     }
 
     private func say(_ message: String) {
+        let utterance = AVSpeechUtterance(string: message)
+        utterance.voice = AVSpeechSynthesisVoice(language: "en-US")
         PopAI.log("Saying '\(message)'")
+        isTalking = true
+        self.speechSynthesizer.speak(utterance)
     }
 
     // MARK: SFSpeechRecognitionTaskDelegate
@@ -159,11 +172,42 @@ class Conversation: NSObject, ObservableObject, SFSpeechRecognitionTaskDelegate
             currentRequest = ""
             stopListening()
             say(response)
-            do {
-                try startListening()
-            } catch {
-                PopAI.log("Failed to re-start listening: \(error)")
-            }
+        }
+    }
+
+    // MARK: AVSpeechSynthesizerDelegate
+
+    func speechSynthesizer(
+        _ synthesizer: AVSpeechSynthesizer,
+        didFinish utterance: AVSpeechUtterance
+    ) {
+        log("Finished saying '\(utterance.speechString)'")
+        guard isTalking else {
+            return
+        }
+
+        isTalking = false
+        do {
+            try startListening()
+        } catch {
+            PopAI.log("Failed to re-start listening: \(error)")
+        }
+    }
+
+    func speechSynthesizer(
+        _ synthesizer: AVSpeechSynthesizer,
+        didCancel utterance: AVSpeechUtterance
+    ) {
+        log("Canceled saying '\(utterance.speechString)'")
+        guard isTalking else {
+            return
+        }
+
+        isTalking = false
+        do {
+            try startListening()
+        } catch {
+            PopAI.log("Failed to re-start listening: \(error)")
         }
     }
 }
