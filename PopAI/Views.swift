@@ -4,6 +4,7 @@ struct ConversationView: View {
     @EnvironmentObject var appLog: Log
     @EnvironmentObject var nmea: NMEA
     @EnvironmentObject var conversation: Conversation
+    @EnvironmentObject var settings: Settings
 
     var body: some View {
         NavigationStack {
@@ -36,6 +37,7 @@ struct ConversationView: View {
                         destination: SettingsView()
                             .environmentObject(nmea)
                             .environmentObject(appLog)
+                            .environmentObject(settings)
                     ) {
                         Image(systemName: "gearshape.fill")
                             .resizable()
@@ -82,28 +84,28 @@ struct ConversationView: View {
 struct SettingsView: View {
     @EnvironmentObject var nmea: NMEA
     @EnvironmentObject var appLog: Log
-    @State private var nmeaAddress: String = "192.168.4.1:1456"
-    @State private var nmeaSource: NMEASource = NMEASource.TCP
-    @State private var draftUnit: Unit = Unit.USCS
+    @EnvironmentObject var settings: Settings
 
     var body: some View {
         Form {
             Section(header: Text("Units")) {
-                Picker("Draft", selection: $settings.units) {
+                Picker("Draft", selection: $settings.draftUnits) {
                     Text("Metric").tag(Units.Metric)
                     Text("USCS (\"Imperial\")").tag(Units.USCS)
                 }
             }
             Section(header: Text("NMEA")) {
-                Picker("Data Source", selection: $nmeaSource) {
+                Picker("Data Source", selection: $settings.nmeaSource) {
                     Text("Remote TCP").tag(NMEASource.TCP)
                     Text("Sample Data").tag(NMEASource.SampleData)
                 }
-                TextField("Address", text: $nmeaAddress)
+                TextField("Address", text: $settings.nmeaAddress)
                     .disableAutocorrection(true)
-                    .disabled(nmeaSource == NMEASource.SampleData)
+                    .keyboardType(.numbersAndPunctuation)
+                    .disabled(settings.nmeaSource == NMEASource.SampleData)
                     .foregroundStyle(
-                        nmeaSource == NMEASource.TCP ? .primary : .secondary)
+                        settings.nmeaSource == NMEASource.TCP
+                            ? .primary : .secondary)
                 NavigationLink(
                     destination: LogView("nmea").environmentObject(nmea.log)
                 ) {
@@ -117,7 +119,7 @@ struct SettingsView: View {
                     Text(
                         nmea.state.draft == nil
                             ? ""
-                            : draftUnit == .Metric
+                            : settings.draftUnits == .Metric
                                 ? "\(String(format: "%0.2f", nmea.state.draft!.value)) m"
                                 : "\(nmea.state.draft!.inFeet.feet)' \(nmea.state.draft!.inFeet.inches)\""
                     )
@@ -203,7 +205,8 @@ struct LogView: View {
         .environmentObject(Log(entries: ["started app"]))
         .environmentObject(
             NMEA(state: NMEA.State(draft: Meters(1)), log: NMEA.sampleData)
-        ).environmentObject(
+        ).environmentObject(Settings())
+        .environmentObject(
             Conversation(
                 enabled: true,
                 currentRequest: "PopAI, what is",

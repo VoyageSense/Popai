@@ -1,6 +1,6 @@
 import SwiftUI
 
-enum NMEASource {
+enum NMEASource: String {
     case TCP
     case SampleData
 }
@@ -10,10 +10,45 @@ enum Units: String {
     case USCS
 }
 
+class Settings: ObservableObject {
+    @Published var draftUnits: Units {
+        didSet {
+            UserDefaults.standard.set(draftUnits.rawValue, forKey: "draftUnits")
+        }
+    }
+    @Published var nmeaSource: NMEASource {
+        didSet {
+            UserDefaults.standard.set(nmeaSource.rawValue, forKey: "nmeaSource")
+        }
+    }
+    @Published var nmeaAddress: String {
+        didSet {
+            UserDefaults.standard.set(nmeaAddress, forKey: "nmeaAddress")
+        }
+    }
+
+    init() {
+        self.draftUnits =
+            Units(
+                rawValue: UserDefaults.standard.string(forKey: "draftUnits")
+                    ?? "")
+            ?? Units.Metric
+        self.nmeaSource =
+            NMEASource(
+                rawValue: UserDefaults.standard.string(forKey: "nmeaSource")
+                    ?? "")
+            ?? NMEASource.TCP
+        self.nmeaAddress =
+            UserDefaults.standard.string(forKey: "nmeaAddress")
+            ?? "192.168.4.1:1456"
+    }
+}
+
 @main
 struct PopAIApp: App {
     @StateObject var nmea = NMEA()
     @StateObject var conversation = Conversation()
+    @StateObject var settings = Settings()
 
     var body: some Scene {
         WindowGroup {
@@ -21,6 +56,7 @@ struct PopAIApp: App {
                 .environmentObject(Log.global)
                 .environmentObject(nmea)
                 .environmentObject(conversation)
+                .environmentObject(settings)
                 .onAppear {
                     log("Started app")
 
