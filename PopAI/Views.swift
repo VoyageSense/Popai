@@ -5,6 +5,7 @@ struct ConversationView: View {
     @EnvironmentObject var nmea: NMEA
     @EnvironmentObject var conversation: Conversation
     @EnvironmentObject var settings: Settings
+    @EnvironmentObject var networkClient: Client
 
     var body: some View {
         NavigationStack {
@@ -38,6 +39,7 @@ struct ConversationView: View {
                             .environmentObject(nmea)
                             .environmentObject(appLog)
                             .environmentObject(settings)
+                            .environmentObject(networkClient)
                     ) {
                         Image(systemName: "gearshape.fill")
                             .resizable()
@@ -85,6 +87,7 @@ struct SettingsView: View {
     @EnvironmentObject var nmea: NMEA
     @EnvironmentObject var appLog: Log
     @EnvironmentObject var settings: Settings
+    @EnvironmentObject var networkClient: Client
 
     var body: some View {
         Form {
@@ -111,6 +114,34 @@ struct SettingsView: View {
                 ) {
                     Text("Log")
                 }
+                Button(action: {
+                    switch settings.nmeaSource {
+                    case .TCP:
+                        if networkClient.isConnected {
+                            networkClient.disconnect()
+                        } else {
+                            networkClient.connect(
+                                to: settings.nmeaAddress, nmea: nmea)
+                        }
+                    case .SampleData:
+                        for sentence in NMEA.sampleData.entries {
+                            do {
+                                try nmea.processSentence(sentence)
+                            } catch {
+                                log("Failed to process '\(sentence)': \(error)")
+                            }
+                        }
+                    }
+                }) {
+                    Text(
+                        networkClient.isConnecting
+                            ? "Connecting..."
+                            : networkClient.isConnected
+                                ? "Disconnect" : "Connect"
+                    )
+                    .frame(
+                        maxWidth: .infinity, alignment: .center)
+                }.disabled(networkClient.isConnecting)
             }
             Section(header: Text("Boat")) {
                 HStack {
@@ -206,6 +237,7 @@ struct LogView: View {
         .environmentObject(
             NMEA(state: NMEA.State(draft: Meters(1)), log: NMEA.sampleData)
         ).environmentObject(Settings())
+        .environmentObject(Client())
         .environmentObject(
             Conversation(
                 enabled: true,

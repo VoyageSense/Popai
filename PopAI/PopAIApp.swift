@@ -49,6 +49,7 @@ struct PopAIApp: App {
     @StateObject var nmea = NMEA()
     @StateObject var conversation = Conversation()
     @StateObject var settings = Settings()
+    @StateObject var client = Client()
 
     var body: some Scene {
         WindowGroup {
@@ -57,6 +58,7 @@ struct PopAIApp: App {
                 .environmentObject(nmea)
                 .environmentObject(conversation)
                 .environmentObject(settings)
+                .environmentObject(client)
                 .onAppear {
                     log("Started app")
 
