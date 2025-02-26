@@ -190,12 +190,17 @@ struct LogView: View {
         VStack {
             GeometryReader { geometry in
                 ScrollView([.horizontal, .vertical]) {
-                    Text(log.entries.joined(separator: "\n"))
-                        .padding()
-                        .frame(
-                            minWidth: geometry.size.width,
-                            minHeight: geometry.size.height,
-                            alignment: .topLeading)
+                    Text(
+                        log.entries.map { entry in
+                            entry.trimmingCharacters(
+                                in: .whitespacesAndNewlines)
+                        }.joined(separator: "\n")
+                    )
+                    .padding()
+                    .frame(
+                        minWidth: geometry.size.width,
+                        minHeight: geometry.size.height,
+                        alignment: .topLeading)
                 }
             }
             Button(action: {
