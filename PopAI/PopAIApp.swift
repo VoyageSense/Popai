@@ -26,6 +26,28 @@ class Settings: ObservableObject {
             UserDefaults.standard.set(nmeaAddress, forKey: "nmeaAddress")
         }
     }
+    @Published var presentedKeyword: String {
+        didSet {
+            UserDefaults.standard.set(
+                presentedKeyword, forKey: "presentedKeyword")
+        }
+    }
+    @Published var recognizedKeywords: [String] {
+        didSet {
+            UserDefaults.standard.set(
+                recognizedKeywords.joined(separator: ","),
+                forKey: "recognizedKeywords")
+        }
+    }
+    @Published var presentedRecognizedKeywords: String {
+        didSet {
+            recognizedKeywords = presentedRecognizedKeywords.split(
+                separator: ","
+            ).map({ keyword in
+                keyword.trimmingCharacters(in: .whitespaces).lowercased()
+            })
+        }
+    }
 
     init() {
         self.draftUnits =
@@ -41,6 +63,28 @@ class Settings: ObservableObject {
         self.nmeaAddress =
             UserDefaults.standard.string(forKey: "nmeaAddress")
             ?? "192.168.4.1:1456"
+        self.presentedKeyword =
+            UserDefaults.standard.string(forKey: "presentedKeyword") ?? "PopAI"
+
+        let recognizedKeywords =
+            UserDefaults.standard.string(forKey: "recognizedKeywords")?.split(
+                separator: ","
+            ).map(String.init) ?? [
+                "popeye", "papa", "pape", "bye-bye", "pop ai", "hope",
+            ]
+        self.recognizedKeywords = recognizedKeywords
+        self.presentedRecognizedKeywords = recognizedKeywords.joined(
+            separator: ", ")
+    }
+}
+
+struct Correction {
+    let presented: String
+    let recognized: [String]
+
+    init(_ presented: String, _ recognized: [String]) {
+        self.presented = presented
+        self.recognized = recognized
     }
 }
 
@@ -50,6 +94,27 @@ struct PopAIApp: App {
     @StateObject var conversation = Conversation()
     @StateObject var settings = Settings()
     @StateObject var client = Client()
+
+    private var draftReading: String {
+        switch settings.draftUnits {
+        case .Metric:
+            if let meters = nmea.state.draft?.value {
+                return String(
+                    format: "%.1f meters", meters)
+            } else {
+                return "I don't know"
+            }
+        case .USCS:
+            if let feet = nmea.state.draft?.inFeet {
+                return String(
+                    format: "%d feet, %d inches",
+                    feet.feet,
+                    feet.inches)
+            } else {
+                return "I don't know"
+            }
+        }
+    }
 
     var body: some Scene {
         WindowGroup {
@@ -64,25 +129,54 @@ struct PopAIApp: App {
                 log("Started app")
 
                 conversation.enableSpeech {
-                    (request: Conversation.Request) -> String in
-                    switch request {
-                    case Conversation.Request.Draft:
-                        switch settings.draftUnits {
-                        case .Metric:
-                            if let meters = nmea.state.draft?.value {
-                                return String(format: "%.1f meters", meters)
-                            } else {
-                                return "I don't know"
+                    (transcription: String) -> (String, String?) in
+                    log("Heard: \(transcription)")
+
+                    let normal = transcription.lowercased()
+                    guard
+                        settings.recognizedKeywords.contains(
+                            where: normal.contains)
+                    else {
+                        return (transcription, nil)
+                    }
+
+                    log("Recognized: \(transcription)")
+
+                    let corrections = [
+                        Correction(
+                            settings.presentedKeyword,
+                            settings.recognizedKeywords),
+                        Correction("depth", ["debt", "death"]),
+                    ]
+
+                    var corrected = transcription
+                    corrections.forEach({ correction in
+                        correction.recognized.forEach({ recognized in
+                            if let range = corrected.range(
+                                of: recognized, options: .caseInsensitive)
+                            {
+                                corrected.replaceSubrange(
+                                    range,
+                                    with: correction.presented.first!
+                                        .isUppercase
+                                        ? correction.presented
+                                        : corrected[range].first!.isUppercase
+                                            ? correction.presented
+                                                .localizedCapitalized
+                                            : correction.presented)
                             }
-                        case .USCS:
-                            if let feet = nmea.state.draft?.inFeet {
-                                return String(
-                                    format: "%d feet, %d inches", feet.feet,
-                                    feet.inches)
-                            } else {
-                                return "I don't know"
-                            }
-                        }
+                        })
+                    })
+
+                    log("Corrected to: \(corrected)")
+
+                    let normalCorrected = corrected.lowercased()
+                    if ["draft", "depth"].contains(
+                        where: normalCorrected.contains)
+                    {
+                        return (corrected, draftReading)
+                    } else {
+                        return (corrected, nil)
                     }
                 }
             }

@@ -67,7 +67,7 @@ struct ConversationView: View {
         }
 
         func prompt() -> some View {
-            background("PopAI, ...").padding()
+            background(settings.presentedKeyword + " ...")
         }
 
         return ScrollView(.vertical) {
@@ -165,6 +165,10 @@ struct SettingsView: View {
                 }
             }
             Section(header: Text("App")) {
+                TextField("Presented keyword", text: $settings.presentedKeyword)
+                TextField(
+                    "Recognized keywords",
+                    text: $settings.presentedRecognizedKeywords)
                 NavigationLink(
                     destination: LogView(log: appLog, name: "popai")
                 ) {

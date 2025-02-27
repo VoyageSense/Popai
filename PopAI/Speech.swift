@@ -19,7 +19,7 @@ class Conversation: NSObject, ObservableObject, SFSpeechRecognitionTaskDelegate,
         case Draft
     }
 
-    typealias RequestHandler = (Request) -> String
+    typealias RequestHandler = (String) -> (String, String?)
 
     @Published var isEnabled: Bool
     @Published var isListening: Bool = false
@@ -127,26 +127,6 @@ class Conversation: NSObject, ObservableObject, SFSpeechRecognitionTaskDelegate,
         isListening = false
     }
 
-    private func parseSpeech(_ transcription: SFTranscription) -> (
-        String, String?
-    ) {
-        let normalSpeech = transcription.formattedString.lowercased()
-        guard normalSpeech.contains("popeye") || normalSpeech.contains("papa")
-        else {
-            return (transcription.formattedString, nil)
-        }
-
-        let correctedRequest = transcription.formattedString
-            .replacingOccurrences(of: "Popeye", with: "PopAI,")
-            .replacingOccurrences(of: "Papa", with: "PopAI,")
-
-        if normalSpeech.contains("depth") || normalSpeech.contains("draft") {
-            return (correctedRequest, requestHandler!(Request.Draft))
-        } else {
-            return (correctedRequest, nil)
-        }
-    }
-
     private func say(_ message: String) {
         let utterance = AVSpeechUtterance(string: message)
         utterance.voice = AVSpeechSynthesisVoice(language: "en-US")
@@ -161,7 +141,8 @@ class Conversation: NSObject, ObservableObject, SFSpeechRecognitionTaskDelegate,
         _ task: SFSpeechRecognitionTask,
         didHypothesizeTranscription: SFTranscription
     ) {
-        let (request, response) = parseSpeech(didHypothesizeTranscription)
+        let (request, response) = requestHandler!(
+            didHypothesizeTranscription.formattedString)
         currentRequest = request
         if let response = response {
             pastInteractions.append(
