@@ -191,7 +191,7 @@ struct LogView: View {
             GeometryReader { geometry in
                 ScrollView([.horizontal, .vertical]) {
                     Text(
-                        log.entries.map { entry in
+                        log.entries.suffix(100).map { entry in
                             entry.trimmingCharacters(
                                 in: .whitespacesAndNewlines)
                         }.joined(separator: "\n")
