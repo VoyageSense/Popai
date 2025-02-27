@@ -9,25 +9,21 @@ func log(_ message: String) {
 class Log: ObservableObject, FileDocument {
     static let global = Log()
 
-    private static let _maxEntries = 65536
-    private var _entries: [String] = []
-    private let _queue = DispatchQueue(
+    private static let maxEntries = 65536
+    private(set) var entries: [String] = []
+    private let queue = DispatchQueue(
         label: "log.queue", attributes: .concurrent)
 
-    var entries: [String] {
-        return _entries
-    }
-
     init(entries: [String] = []) {
-        self._entries = entries
+        self.entries = entries
     }
 
     func append(_ line: String) {
-        _queue.async(flags: .barrier) {
-            if self._entries.count >= Log._maxEntries {
-                self._entries.removeFirst()
+        queue.async(flags: .barrier) {
+            if self.entries.count >= Log.maxEntries {
+                self.entries.removeFirst()
             }
-            self._entries.append(line)
+            self.entries.append(line)
             DispatchQueue.main.async {
                 self.objectWillChange.send()
             }
@@ -35,7 +31,7 @@ class Log: ObservableObject, FileDocument {
     }
 
     func reset() {
-        self._entries = []
+        self.entries = []
     }
 
     // MARK: FileDocument
@@ -47,7 +43,7 @@ class Log: ObservableObject, FileDocument {
             let lines = String(data: data, encoding: .utf8)?.components(
                 separatedBy: .newlines)
         {
-            _entries = lines
+            entries = lines
         } else {
             throw CocoaError(.fileReadCorruptFile)
         }
