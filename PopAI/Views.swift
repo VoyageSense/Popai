@@ -1,11 +1,11 @@
 import SwiftUI
 
 struct ConversationView: View {
-    @EnvironmentObject var appLog: Log
-    @EnvironmentObject var nmea: NMEA
-    @EnvironmentObject var conversation: Conversation
-    @EnvironmentObject var settings: Settings
-    @EnvironmentObject var networkClient: Client
+    @ObservedObject var appLog: Log
+    @ObservedObject var nmea: NMEA
+    @ObservedObject var conversation: Conversation
+    @ObservedObject var settings: Settings
+    @ObservedObject var networkClient: Client
 
     var body: some View {
         NavigationStack {
@@ -35,11 +35,11 @@ struct ConversationView: View {
                     }
                     .disabled(!conversation.isEnabled)
                     NavigationLink(
-                        destination: SettingsView()
-                            .environmentObject(nmea)
-                            .environmentObject(appLog)
-                            .environmentObject(settings)
-                            .environmentObject(networkClient)
+                        destination: SettingsView(
+                            nmea: nmea,
+                            appLog: appLog,
+                            settings: settings,
+                            networkClient: networkClient)
                     ) {
                         Image(systemName: "gearshape.fill")
                             .resizable()
@@ -84,10 +84,10 @@ struct ConversationView: View {
 }
 
 struct SettingsView: View {
-    @EnvironmentObject var nmea: NMEA
-    @EnvironmentObject var appLog: Log
-    @EnvironmentObject var settings: Settings
-    @EnvironmentObject var networkClient: Client
+    @ObservedObject var nmea: NMEA
+    @ObservedObject var appLog: Log
+    @ObservedObject var settings: Settings
+    @ObservedObject var networkClient: Client
 
     var body: some View {
         Form {
@@ -110,7 +110,7 @@ struct SettingsView: View {
                         settings.nmeaSource == NMEASource.TCP
                             ? .primary : .secondary)
                 NavigationLink(
-                    destination: LogView("nmea").environmentObject(nmea.log)
+                    destination: LogView(log: nmea.log, name: "nmea")
                 ) {
                     Text("Log")
                 }
@@ -158,7 +158,7 @@ struct SettingsView: View {
             }
             Section(header: Text("App")) {
                 NavigationLink(
-                    destination: LogView("popai").environmentObject(appLog)
+                    destination: LogView(log: appLog, name: "popai")
                 ) {
                     Text("Log")
                 }
@@ -169,15 +169,11 @@ struct SettingsView: View {
 }
 
 struct LogView: View {
-    @EnvironmentObject var log: Log
+    @ObservedObject var log: Log
     @State private var showFileExporter = false
     @State private var showAlert = false
     @State private var lastError = ""
-    private let name: String
-
-    init(_ name: String) {
-        self.name = name
-    }
+    let name: String
 
     var defaultFilename: String {
         let formatter = DateFormatter()
@@ -237,25 +233,23 @@ struct LogView: View {
 }
 
 #Preview {
-    ConversationView()
-        .environmentObject(Log(entries: ["started app"]))
-        .environmentObject(
-            NMEA(state: NMEA.State(draft: Meters(1)), log: NMEA.sampleData)
-        ).environmentObject(Settings())
-        .environmentObject(Client())
-        .environmentObject(
-            Conversation(
-                enabled: true,
-                currentRequest: "PopAI, what is",
-                pastInteractions: [
-                    Conversation.Interaction(
-                        request: "PopAI, what is the current depth?",
-                        response: "2.1 feet"),
-                    Conversation.Interaction(
-                        request: "PopAI, what is my depth?",
-                        response: "2.2 feet"),
-                    Conversation.Interaction(
-                        request: "PopAI, what's the draft?",
-                        response: "1.9 feet"),
-                ]))
+    ConversationView(
+        appLog: Log(entries: ["started app"]),
+        nmea: NMEA(state: NMEA.State(draft: Meters(1)), log: NMEA.sampleData),
+        conversation: Conversation(
+            enabled: true,
+            currentRequest: "PopAI, what is",
+            pastInteractions: [
+                Conversation.Interaction(
+                    request: "PopAI, what is the current depth?",
+                    response: "2.1 feet"),
+                Conversation.Interaction(
+                    request: "PopAI, what is my depth?",
+                    response: "2.2 feet"),
+                Conversation.Interaction(
+                    request: "PopAI, what's the draft?",
+                    response: "1.9 feet"),
+            ]),
+        settings: Settings(),
+        networkClient: Client())
 }

@@ -53,38 +53,39 @@ struct PopAIApp: App {
 
     var body: some Scene {
         WindowGroup {
-            ConversationView()
-                .environmentObject(Log.global)
-                .environmentObject(nmea)
-                .environmentObject(conversation)
-                .environmentObject(settings)
-                .environmentObject(client)
-                .onAppear {
-                    log("Started app")
+            ConversationView(
+                appLog: Log.global,
+                nmea: nmea,
+                conversation: conversation,
+                settings: settings,
+                networkClient: client
+            )
+            .onAppear {
+                log("Started app")
 
-                    conversation.enableSpeech {
-                        (request: Conversation.Request) -> String in
-                        switch request {
-                        case Conversation.Request.Draft:
-                            switch settings.draftUnits {
-                            case .Metric:
-                                if let meters = nmea.state.draft?.value {
-                                    return String(format: "%.1f meters", meters)
-                                } else {
-                                    return "I don't know"
-                                }
-                            case .USCS:
-                                if let feet = nmea.state.draft?.inFeet {
-                                    return String(
-                                        format: "%d feet, %d inches", feet.feet,
-                                        feet.inches)
-                                } else {
-                                    return "I don't know"
-                                }
+                conversation.enableSpeech {
+                    (request: Conversation.Request) -> String in
+                    switch request {
+                    case Conversation.Request.Draft:
+                        switch settings.draftUnits {
+                        case .Metric:
+                            if let meters = nmea.state.draft?.value {
+                                return String(format: "%.1f meters", meters)
+                            } else {
+                                return "I don't know"
+                            }
+                        case .USCS:
+                            if let feet = nmea.state.draft?.inFeet {
+                                return String(
+                                    format: "%d feet, %d inches", feet.feet,
+                                    feet.inches)
+                            } else {
+                                return "I don't know"
                             }
                         }
                     }
                 }
+            }
         }
     }
 }
