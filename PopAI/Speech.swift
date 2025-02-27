@@ -26,9 +26,6 @@ class Conversation: NSObject, ObservableObject, SFSpeechRecognitionTaskDelegate,
     @Published var isTalking: Bool = false
     @Published var currentRequest: String = ""
     @Published var pastInteractions: [Interaction]
-    var listeningForFirst: Bool {
-        currentRequest.isEmpty && pastInteractions.isEmpty && isListening
-    }
     var isOngoing: Bool {
         return isListening || isTalking
     }

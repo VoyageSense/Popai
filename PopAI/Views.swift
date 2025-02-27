@@ -54,29 +54,35 @@ struct ConversationView: View {
         }
     }
 
-    @ViewBuilder
     var conversations: some View {
-        ScrollView(.vertical) {
+        func background(_ text: String) -> some View {
+            Text(text)
+                .font(.largeTitle)
+                .foregroundStyle(.secondary)
+        }
+
+        func foreground(_ text: String) -> some View {
+            Text(text)
+                .font(.largeTitle)
+        }
+
+        func prompt() -> some View {
+            background("PopAI, ...").padding()
+        }
+
+        return ScrollView(.vertical) {
             LazyVStack(alignment: .leading, spacing: 8) {
-                if conversation.listeningForFirst {
-                    Text("PopAI, ...")
-                        .font(.largeTitle)
-                        .padding()
-                        .foregroundStyle(.secondary)
+                ForEach(conversation.pastInteractions) { interaction in
+                    background(interaction.request).padding()
+                    foreground(interaction.response).padding([
+                        .horizontal, .bottom,
+                    ])
+                    Divider().padding()
+                }
+                if conversation.currentRequest.isEmpty {
+                    prompt()
                 } else {
-                    ForEach(conversation.pastInteractions) { interaction in
-                        Text(interaction.request)
-                            .font(.largeTitle)
-                            .padding()
-                            .foregroundStyle(.secondary)
-                        Text(interaction.response)
-                            .font(.largeTitle)
-                            .padding([.horizontal, .bottom])
-                        Divider().padding()
-                    }
-                    Text(conversation.currentRequest)
-                        .font(.largeTitle)
-                        .padding()
+                    foreground(conversation.currentRequest).padding()
                 }
             }
         }
@@ -240,14 +246,11 @@ struct LogView: View {
         nmea: NMEA(state: NMEA.State(draft: Meters(1)), log: NMEA.sampleData),
         conversation: Conversation(
             enabled: true,
-            currentRequest: "PopAI, what is",
+            currentRequest: "",
             pastInteractions: [
                 Conversation.Interaction(
                     request: "PopAI, what is the current depth?",
                     response: "2.1 feet"),
-                Conversation.Interaction(
-                    request: "PopAI, what is my depth?",
-                    response: "2.2 feet"),
                 Conversation.Interaction(
                     request: "PopAI, what's the draft?",
                     response: "1.9 feet"),
