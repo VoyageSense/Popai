@@ -149,11 +149,13 @@ struct SettingsView: View {
                     Spacer()
                     Text(
                         nmea.state.draft == nil
-                            ? ""
+                            ? "Unknown"
                             : settings.draftUnits == .Metric
                                 ? "\(String(format: "%0.2f", nmea.state.draft!.value)) m"
                                 : "\(nmea.state.draft!.inFeet.feet)' \(nmea.state.draft!.inFeet.inches)\""
                     )
+                    .foregroundStyle(
+                        nmea.state.draft == nil ? .secondary : .primary)
                 }
             }
             Section(header: Text("App")) {
