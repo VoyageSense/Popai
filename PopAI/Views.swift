@@ -62,13 +62,13 @@ struct ConversationView: View {
                     Text("PopAI, ...")
                         .font(.largeTitle)
                         .padding()
-                        .foregroundColor(Color.secondary)
+                        .foregroundStyle(.secondary)
                 } else {
                     ForEach(conversation.pastInteractions) { interaction in
                         Text(interaction.request)
                             .font(.largeTitle)
                             .padding()
-                            .foregroundColor(Color.secondary)
+                            .foregroundStyle(.secondary)
                         Text(interaction.response)
                             .font(.largeTitle)
                             .padding([.horizontal, .bottom])
