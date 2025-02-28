@@ -261,7 +261,7 @@ struct LogView: View {
 
 #Preview {
     ConversationView(
-        appLog: Log(entries: ["started app"]),
+        appLog: Log(entries: ["2025-02-28T21:28:16.838 | Started app"]),
         nmea: NMEA(state: NMEA.State(draft: Meters(1)), log: NMEA.sampleData),
         conversation: Conversation(
             enabled: true,

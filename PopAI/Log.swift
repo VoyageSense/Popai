@@ -3,8 +3,15 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 func log(_ message: String) {
-    Log.global.append(message)
-    print(message)
+    let timestamp = Date().formatted(
+        .iso8601
+            .year()
+            .month()
+            .day()
+            .time(includingFractionalSeconds: true))
+    let entry = "\(timestamp) | \(message)"
+    Log.global.append(entry)
+    print(entry)
 }
 
 class Log: ObservableObject, FileDocument {
