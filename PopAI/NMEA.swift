@@ -54,11 +54,16 @@ class NMEA: ObservableObject {
         "!AIVDM,1,1,,A,15MiuGPP5bG?NqlEd2AmUww`0<28,0*44",
     ])
 
-    private var unrecognizedTalkers: [String] = []
+    private let recognizedTypes:
+        [String: (ArraySlice<Substring>, inout NMEA.State) throws -> Void]
+    private var unrecognizedTypes: Set<String> = Set()
 
     init(state: State = State(), log: Log = Log()) {
         self.state = state
         self.log = log
+        self.recognizedTypes = [
+            "DBT": processTransducerDepth,
+        ]
     }
 
     enum ProcessingError: Error {
@@ -67,6 +72,7 @@ class NMEA: ObservableObject {
         case missingEnding
         case malformedChecksum
         case invalidChecksum
+        case malformedTag
     }
 
     func processSentence(_ sentence: String) throws {
@@ -126,17 +132,18 @@ class NMEA: ObservableObject {
         let fields = payload.split(
             separator: ",", omittingEmptySubsequences: false)
 
-        let talker = fields.first
-        switch talker {
-        case "DBT", "YDDBS":
-            try processTransducerDepth(fields.dropFirst())
-        default:
-            if let talker = talker.map(String.init),
-                !unrecognizedTalkers.contains(talker)
-            {
-                PopAI.log("Unrecognized sentence: \(payload)")
-                unrecognizedTalkers.append(talker)
-            }
+        guard
+            let talker = fields.first?.prefix(2),
+            let type = fields.first?.dropFirst(2),
+            talker.count == 2 && type.count == 3
+        else {
+            throw ProcessingError.malformedTag
+        }
+
+        if let fn = recognizedTypes[String(type)] {
+            try fn(fields.dropFirst(), &self.state)
+        } else if unrecognizedTypes.insert(String(type)).inserted {
+            PopAI.log("Unrecognized sentence: \(payload)")
         }
     }
 
@@ -145,60 +152,59 @@ class NMEA: ObservableObject {
     {
 
     }
+}
 
-    private func processTransducerDepth(_ fields: ArraySlice<Substring>)
-        throws
-    {
-        var feet: Feet? = nil
-        var meters: Meters? = nil
-        var fathoms: Fathoms? = nil
+private func processTransducerDepth(
+    _ fields: ArraySlice<Substring>, _ state: inout NMEA.State
+) throws {
+    guard fields.count == 6 else {
+        PopAI.log(
+            "Expected six fields in transducer-depth sentence, but found \(fields.count)"
+        )
+        return
+    }
 
-        guard fields.count == 6 else {
-            PopAI.log(
-                "Expected six fields in transducer-depth sentence, but found \(fields.count)"
-            )
-            return
+    var feet: Feet? = nil
+    var meters: Meters? = nil
+    var fathoms: Fathoms? = nil
+
+    for pair in stride(from: fields.startIndex, to: fields.endIndex, by: 2) {
+        let measurement = fields[pair]
+        let unit = fields[pair.advanced(by: 1)]
+
+        guard let measurement = Double(measurement) else {
+            PopAI.log("Malformed measurement: \(measurement)")
+            continue
         }
 
-        for pair in stride(from: fields.startIndex, to: fields.endIndex, by: 2)
-        {
-            let measurement = fields[pair]
-            let unit = fields[pair.advanced(by: 1)]
-
-            guard let measurement = Double(measurement) else {
-                PopAI.log("Malformed measurement: \(measurement)")
-                continue
-            }
-
-            switch unit {
-            case "f":
-                feet = Feet(measurement)
-            case "M":
-                meters = Meters(measurement)
-            case "F":
-                fathoms = Fathoms(measurement)
-            default:
-                PopAI.log("Unrecognized transducer depth unit: \(unit)")
-            }
+        switch unit {
+        case "f":
+            feet = Feet(measurement)
+        case "M":
+            meters = Meters(measurement)
+        case "F":
+            fathoms = Fathoms(measurement)
+        default:
+            PopAI.log("Unrecognized transducer depth unit: \(unit)")
         }
+    }
 
-        switch (feet, meters, fathoms) {
-        case let (feet?, meters?, fathoms?):
-            state.draft = min(feet.inMeters, meters, fathoms.inMeters)
-        case let (feet?, meters?, nil):
-            state.draft = min(feet.inMeters, meters)
-        case let (feet?, nil, fathoms?):
-            state.draft = min(feet.inMeters, fathoms.inMeters)
-        case let (feet?, nil, nil):
-            state.draft = feet.inMeters
-        case let (nil, meters?, fathoms?):
-            state.draft = min(meters, fathoms.inMeters)
-        case let (nil, meters?, nil):
-            state.draft = meters
-        case let (nil, nil, fathoms?):
-            state.draft = fathoms.inMeters
-        case (nil, nil, nil):
-            PopAI.log("No depth measurements found")
-        }
+    switch (feet, meters, fathoms) {
+    case let (feet?, meters?, fathoms?):
+        state.draft = min(feet.inMeters, meters, fathoms.inMeters)
+    case let (feet?, meters?, nil):
+        state.draft = min(feet.inMeters, meters)
+    case let (feet?, nil, fathoms?):
+        state.draft = min(feet.inMeters, fathoms.inMeters)
+    case let (feet?, nil, nil):
+        state.draft = feet.inMeters
+    case let (nil, meters?, fathoms?):
+        state.draft = min(meters, fathoms.inMeters)
+    case let (nil, meters?, nil):
+        state.draft = meters
+    case let (nil, nil, fathoms?):
+        state.draft = fathoms.inMeters
+    case (nil, nil, nil):
+        PopAI.log("No depth measurements found")
     }
 }
