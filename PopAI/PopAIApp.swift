@@ -161,7 +161,7 @@ struct PopAIApp: App {
                         Correction(
                             settings.presentedKeyword,
                             settings.recognizedKeywords),
-                        Correction("depth", ["debt", "death"]),
+                        Correction("depth", ["debt", "death", "deaf"]),
                     ]
 
                     var corrected = transcription
