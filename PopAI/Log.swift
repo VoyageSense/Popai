@@ -4,6 +4,7 @@ import UniformTypeIdentifiers
 
 func log(_ message: String) {
     Log.global.append(message)
+    print(message)
 }
 
 class Log: ObservableObject, FileDocument {
