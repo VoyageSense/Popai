@@ -70,19 +70,28 @@ struct ConversationView: View {
             background(settings.presentedKeyword + " ...")
         }
 
-        return ScrollView(.vertical) {
-            LazyVStack(alignment: .leading, spacing: 8) {
-                ForEach(conversation.pastInteractions) { interaction in
-                    background(interaction.request).padding()
-                    foreground(interaction.response).padding([
-                        .horizontal, .bottom,
-                    ])
-                    Divider().padding()
+        return ScrollViewReader { proxy in
+            ScrollView(.vertical) {
+                LazyVStack(alignment: .leading, spacing: 8) {
+                    ForEach(conversation.pastInteractions) { interaction in
+                        background(interaction.request).padding()
+                        foreground(interaction.response).padding([
+                            .horizontal, .bottom,
+                        ])
+                        Divider().padding()
+                    }
+                    if conversation.currentRequest.isEmpty {
+                        prompt().padding().id("last")
+                    } else {
+                        foreground(conversation.currentRequest)
+                            .padding()
+                            .id("last")
+                    }
                 }
-                if conversation.currentRequest.isEmpty {
-                    prompt()
-                } else {
-                    foreground(conversation.currentRequest).padding()
+                .onChange(of: conversation.pastInteractions) {
+                    withAnimation {
+                        proxy.scrollTo("last")
+                    }
                 }
             }
         }

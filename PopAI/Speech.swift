@@ -3,7 +3,7 @@ import Speech
 class Conversation: NSObject, ObservableObject, SFSpeechRecognitionTaskDelegate,
     AVSpeechSynthesizerDelegate
 {
-    class Interaction: Identifiable {
+    struct Interaction: Equatable, Hashable, Identifiable {
         let id = UUID()
 
         var request: String
