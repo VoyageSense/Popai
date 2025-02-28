@@ -32,13 +32,6 @@ class Settings: ObservableObject {
                 presentedKeyword, forKey: "presentedKeyword")
         }
     }
-    @Published var recognizedKeywords: [String] {
-        didSet {
-            UserDefaults.standard.set(
-                recognizedKeywords.joined(separator: ","),
-                forKey: "recognizedKeywords")
-        }
-    }
     @Published var presentedRecognizedKeywords: String {
         didSet {
             recognizedKeywords = presentedRecognizedKeywords.split(
@@ -48,6 +41,23 @@ class Settings: ObservableObject {
             })
         }
     }
+    var recognizedKeywords: [String] {
+        didSet {
+            UserDefaults.standard.set(
+                recognizedKeywords.joined(separator: ","),
+                forKey: "recognizedKeywords")
+
+            let newPresentedRecognizedKeywords = recognizedKeywords.joined(
+                separator: ", ")
+            if newPresentedRecognizedKeywords != presentedRecognizedKeywords {
+                presentedRecognizedKeywords = newPresentedRecognizedKeywords
+            }
+        }
+    }
+    let defaultPresentedKeyword = "PopAI"
+    let defaultRecognizedKeywords = [
+        "popeye", "poppy", "papa", "pape", "bye-bye", "pop ai", "hope",
+    ]
 
     init() {
         self.draftUnits =
@@ -64,17 +74,22 @@ class Settings: ObservableObject {
             UserDefaults.standard.string(forKey: "nmeaAddress")
             ?? "192.168.4.1:1456"
         self.presentedKeyword =
-            UserDefaults.standard.string(forKey: "presentedKeyword") ?? "PopAI"
+            UserDefaults.standard.string(forKey: "presentedKeyword")
+            ?? defaultPresentedKeyword
 
         let recognizedKeywords =
             UserDefaults.standard.string(forKey: "recognizedKeywords")?.split(
                 separator: ","
-            ).map(String.init) ?? [
-                "popeye", "papa", "pape", "bye-bye", "pop ai", "hope",
-            ]
+            ).map(String.init) ?? defaultRecognizedKeywords
+        self.presentedRecognizedKeywords = ""  // This is set by the next assignment
         self.recognizedKeywords = recognizedKeywords
-        self.presentedRecognizedKeywords = recognizedKeywords.joined(
-            separator: ", ")
+    }
+
+    func resetKeywords() {
+        DispatchQueue.main.async {
+            self.presentedKeyword = self.defaultPresentedKeyword
+            self.recognizedKeywords = self.defaultRecognizedKeywords
+        }
     }
 }
 

@@ -178,6 +178,12 @@ struct SettingsView: View {
                 TextField(
                     "Recognized keywords",
                     text: $settings.presentedRecognizedKeywords)
+                Button(action: {
+                    settings.resetKeywords()
+                }) {
+                    Text("Reset keywords")
+                        .frame(maxWidth: .infinity, alignment: .center)
+                }
                 NavigationLink(
                     destination: LogView(log: appLog, name: "popai")
                 ) {
