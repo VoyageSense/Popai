@@ -172,8 +172,8 @@ struct PopAIApp: App {
                             {
                                 corrected.replaceSubrange(
                                     range,
-                                    with: correction.presented.first!
-                                        .isUppercase
+                                    with: correction.presented.first?
+                                        .isUppercase ?? false
                                         ? correction.presented
                                         : corrected[range].first!.isUppercase
                                             ? correction.presented
