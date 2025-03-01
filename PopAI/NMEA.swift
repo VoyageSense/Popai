@@ -3,6 +3,8 @@ import Foundation
 class NMEA: ObservableObject {
     struct State {
         var draft: Meters?
+        var headingMagnetic: Double?
+        var headingTrue: Double?
     }
 
     @Published var state: State
@@ -63,6 +65,9 @@ class NMEA: ObservableObject {
         self.log = log
         self.recognizedTypes = [
             "DBT": processTransducerDepth,
+            "HDG": processHeading,
+            "HDM": ignore,
+            "HDT": ignore,
         ]
     }
 
@@ -154,6 +159,10 @@ class NMEA: ObservableObject {
     }
 }
 
+private func ignore(
+    _ fields: ArraySlice<Substring>, _ state: inout NMEA.State
+) throws {}
+
 private func processTransducerDepth(
     _ fields: ArraySlice<Substring>, _ state: inout NMEA.State
 ) throws {
@@ -207,4 +216,47 @@ private func processTransducerDepth(
     case (nil, nil, nil):
         PopAI.log("No depth measurements found")
     }
+}
+
+private func processHeading(
+    _ fields: ArraySlice<Substring>, _ state: inout NMEA.State
+) throws {
+    guard fields.count == 5 else {
+        PopAI.log(
+            "Expected five fields in heading sentence, but found \(fields.count)"
+        )
+        return
+    }
+
+    func directionToMagnitude(_ dir: Substring) -> Double? {
+        switch dir {
+        case "E": 1
+        case "W": -1
+        case "": 0
+        default: nil
+        }
+    }
+
+    func magnitude(_ val: Substring) -> Double? {
+        if val.isEmpty {
+            0
+        } else {
+            Double(val)
+        }
+    }
+
+    guard
+        let sensor = Double(fields[fields.startIndex]),
+        let deviation = magnitude(fields[fields.startIndex + 1]),
+        let deviationDir = directionToMagnitude(fields[fields.startIndex + 2]),
+        let variation = magnitude(fields[fields.startIndex + 3]),
+        let variationDir = directionToMagnitude(fields[fields.startIndex + 4])
+    else {
+        PopAI.log("Unable to read heading from \(fields)")
+        return
+    }
+
+    let magnetic = sensor + deviation * deviationDir
+    state.headingMagnetic = magnetic
+    state.headingTrue = magnetic + variation * variationDir
 }

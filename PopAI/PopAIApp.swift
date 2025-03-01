@@ -10,6 +10,11 @@ enum Units: String {
     case USCS
 }
 
+enum HeadingReference: String {
+    case Magnetic
+    case True
+}
+
 class Settings: ObservableObject {
     @Published var draftUnits: Units {
         didSet {
@@ -54,6 +59,12 @@ class Settings: ObservableObject {
             }
         }
     }
+    @Published var headingReference: HeadingReference {
+        didSet {
+            UserDefaults.standard.set(
+                headingReference.rawValue, forKey: "headingReference")
+        }
+    }
     let defaultPresentedKeyword = "PopAI"
     let defaultRecognizedKeywords = [
         "popeye", "poppy", "papa", "pape", "bye-bye", "pop ai", "hope",
@@ -83,6 +94,10 @@ class Settings: ObservableObject {
             ).map(String.init) ?? defaultRecognizedKeywords
         self.presentedRecognizedKeywords = ""  // This is set by the next assignment
         self.recognizedKeywords = recognizedKeywords
+        self.headingReference =
+            HeadingReference(
+                rawValue: UserDefaults.standard.string(
+                    forKey: "headingReference") ?? "") ?? HeadingReference.True
     }
 
     func resetKeywords() {
@@ -125,6 +140,25 @@ struct PopAIApp: App {
                     format: "%d feet, %d inches",
                     feet.feet,
                     feet.inches)
+            } else {
+                return "I don't know"
+            }
+        }
+    }
+
+    private var headingReading: String {
+        switch settings.headingReference {
+        case .True:
+            if let heading = nmea.state.headingTrue {
+                return String(
+                    format: "%.1f° true", heading)
+            } else {
+                return "I don't know"
+            }
+        case .Magnetic:
+            if let heading = nmea.state.headingMagnetic {
+                return String(
+                    format: "%.1f° magnetic", heading)
             } else {
                 return "I don't know"
             }
@@ -190,6 +224,10 @@ struct PopAIApp: App {
                         where: normalCorrected.contains)
                     {
                         return (corrected, draftReading)
+                    } else if ["heading", "course", "coarse"].contains(
+                        where: normalCorrected.contains)
+                    {
+                        return (corrected, headingReading)
                     } else {
                         return (corrected, nil)
                     }

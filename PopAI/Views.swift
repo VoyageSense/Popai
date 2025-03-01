@@ -111,6 +111,10 @@ struct SettingsView: View {
                     Text("Metric").tag(Units.Metric)
                     Text("USCS (\"Imperial\")").tag(Units.USCS)
                 }
+                Picker("Heading", selection: $settings.headingReference) {
+                    Text("True").tag(HeadingReference.True)
+                    Text("Magnetic").tag(HeadingReference.Magnetic)
+                }
             }
             Section(header: Text("NMEA")) {
                 Picker("Data Source", selection: $settings.nmeaSource) {
@@ -171,6 +175,32 @@ struct SettingsView: View {
                     )
                     .foregroundStyle(
                         nmea.state.draft == nil ? .secondary : .primary)
+                }
+                HStack {
+                    Text("Heading")
+                    Spacer()
+                    Text(
+                        // TODO: This should be a computed property on a ViewModel
+                        {
+                            switch (
+                                nmea.state.headingMagnetic,
+                                nmea.state.headingTrue
+                            ) {
+                            case (nil, nil):
+                                "Unknown"
+                            case let (nil, .some(hTrue)):
+                                "\(String(format: "%0.1f°T", hTrue))"
+                            case let (.some(hMagnetic), nil):
+                                "\(String(format: "%0.1f°M", hMagnetic))"
+                            case let (.some(hMagnetic), .some(hTrue)):
+                                "\(String(format: "%0.1f°M / %0.1f°T", hMagnetic, hTrue))"
+                            }
+                        }()
+                    )
+                    .foregroundStyle(
+                        nmea.state.headingMagnetic == nil
+                            && nmea.state.headingTrue == nil
+                            ? .secondary : .primary)
                 }
             }
             Section(header: Text("App")) {
@@ -262,7 +292,12 @@ struct LogView: View {
 #Preview {
     ConversationView(
         appLog: Log(entries: ["2025-02-28T21:28:16.838 | Started app"]),
-        nmea: NMEA(state: NMEA.State(draft: Meters(1)), log: NMEA.sampleData),
+        nmea: NMEA(
+            state: NMEA.State(
+                draft: Meters(1),
+                headingMagnetic: 183.7,
+                headingTrue: 196.5),
+            log: NMEA.sampleData),
         conversation: Conversation(
             enabled: true,
             currentRequest: "",
