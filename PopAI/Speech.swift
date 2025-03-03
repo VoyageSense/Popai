@@ -66,6 +66,20 @@ class Conversation: NSObject, ObservableObject, SFSpeechRecognitionTaskDelegate,
                 PopAI.log("Unknown issue with speech recognition")
             }
         }
+
+        do {
+            let audioSession = AVAudioSession.sharedInstance()
+            try audioSession.setCategory(
+                .playAndRecord,
+                mode: .measurement,
+                options: [
+                    .duckOthers,
+                ])
+            try audioSession.setActive(
+                true, options: .notifyOthersOnDeactivation)
+        } catch {
+            PopAI.log("Failed to configure audio session: \(error)")
+        }
     }
 
     func toggleListening() {
@@ -87,11 +101,6 @@ class Conversation: NSObject, ObservableObject, SFSpeechRecognitionTaskDelegate,
             recognitionTask.cancel()
             self.recognitionTask = nil
         }
-
-        let audioSession = AVAudioSession.sharedInstance()
-        try audioSession.setCategory(
-            .playAndRecord, mode: .measurement, options: .duckOthers)
-        try audioSession.setActive(true, options: .notifyOthersOnDeactivation)
 
         recognitionRequest = SFSpeechAudioBufferRecognitionRequest()
         guard let recognitionRequest = recognitionRequest else {
