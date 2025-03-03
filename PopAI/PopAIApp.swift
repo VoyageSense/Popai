@@ -175,7 +175,20 @@ struct PopAIApp: App {
                 networkClient: client
             )
             .onAppear {
-                log("Started app")
+                if let buildInfoPath = Bundle.main.path(
+                    forResource: "BuildInfo", ofType: "plist"),
+                    let buildInfo = NSDictionary(contentsOfFile: buildInfoPath)
+                {
+                    let revision =
+                        buildInfo["Revision"] as? String ?? "missing revision"
+                    let builtAt =
+                        buildInfo["BuiltAt"] as? String ?? "info missing"
+                    log(
+                        "Started app (\(revision), built at \(builtAt))"
+                    )
+                } else {
+                    log("Started app (unknown revision)")
+                }
 
                 conversation.enableSpeech(startedListening: {
                     (context: Conversation.BeginContext) -> Void in
