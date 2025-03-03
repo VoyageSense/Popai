@@ -329,3 +329,168 @@ private func processGeographicPosition(
             longitude: longitudeMagnitude / 100 * longitudeSign)
     }
 }
+
+class AIVDMDecoder {
+    struct AISMessage {
+        let messageType: Int
+        let mmsi: Int
+        let navigationStatus: Int?
+        let speedOverGround: Double?
+        let longitude: Double?
+        let latitude: Double?
+        let courseOverGround: Double?
+        let trueHeading: Int?
+        let shipName: String?
+        let callSign: String?
+        let shipType: Int?
+    }
+
+    private var messageBuffer: [Int: String] = [:]
+
+    func decode(_ fields: ArraySlice<Substring>) -> AISMessage? {
+        let totalFragments = Int(fields[fields.indices.startIndex + 0]) ?? 1
+        let fragmentNumber = Int(fields[fields.indices.startIndex + 1]) ?? 1
+        let messageId = Int(fields[fields.indices.startIndex + 2]) ?? 0
+        let payload = fields[fields.indices.startIndex + 4]
+
+        if totalFragments > 1 {
+            messageBuffer[messageId, default: ""] += payload
+            if fragmentNumber < totalFragments {
+                return nil
+            }
+        } else {
+            messageBuffer[messageId] = String(payload)
+        }
+
+        guard let fullPayload = messageBuffer[messageId] else { return nil }
+        messageBuffer.removeValue(forKey: messageId)
+
+        return decodePayload(fullPayload)
+    }
+
+    private func decodePayload(_ payload: String) -> AISMessage? {
+        guard let bitString = dearmor(payload) else {
+            return nil
+        }
+
+        let messageType = getInt(bitString, start: 0, length: 6)
+        let mmsi = getInt(bitString, start: 8, length: 30)
+
+        var navigationStatus: Int? = nil
+        var speedOverGround: Double? = nil
+        var longitude: Double? = nil
+        var latitude: Double? = nil
+        var courseOverGround: Double? = nil
+        var trueHeading: Int? = nil
+        var shipName: String? = nil
+        var callSign: String? = nil
+        var shipType: Int? = nil
+
+        if messageType == 1 || messageType == 2 || messageType == 3 {
+            navigationStatus = getInt(bitString, start: 38, length: 4)
+            speedOverGround =
+                Double(getInt(bitString, start: 50, length: 10)) / 10.0
+            longitude =
+                Double(getInt(bitString, start: 61, length: 28)) / 600000.0
+            latitude =
+                Double(getInt(bitString, start: 89, length: 27))
+                / 600000.0
+            courseOverGround =
+                Double(getInt(bitString, start: 116, length: 12)) / 10.0
+            trueHeading = getInt(bitString, start: 128, length: 9)
+        } else if messageType == 5 {
+            shipName = getString(bitString, start: 112, length: 120)
+            callSign = getString(bitString, start: 70, length: 42)
+            shipType = getInt(bitString, start: 232, length: 8)
+        } else if messageType == 24 {
+            shipName = getString(bitString, start: 40, length: 120)
+            shipType = getInt(bitString, start: 232, length: 8)
+        }
+
+        return AISMessage(
+            messageType: messageType,
+            mmsi: mmsi,
+            navigationStatus: navigationStatus,
+            speedOverGround: speedOverGround,
+            longitude: longitude,
+            latitude: latitude,
+            courseOverGround: courseOverGround,
+            trueHeading: trueHeading,
+            shipName: shipName,
+            callSign: callSign,
+            shipType: shipType
+        )
+    }
+
+    private let asciiToBinary: [Character: String] = {
+        let mapping =
+            "0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVW`abcdefghijklmnopqrstuvw"
+
+        return Dictionary(
+            uniqueKeysWithValues: mapping.enumerated().map { (index, char) in
+                let nibble = String(index, radix: 2)
+                return (
+                    char,
+                    String(repeating: "0", count: max(0, 6 - nibble.count))
+                        + nibble
+                )
+            })
+    }()
+
+    private func dearmor(_ payload: String) -> String? {
+        return payload.reduce(into: Optional("")) { result, char in
+            guard let bits = asciiToBinary[char] else {
+                result = nil
+                return
+            }
+            result?.append(bits)
+        }
+    }
+
+    private func getInt(_ bitString: String, start: Int, length: Int)
+        -> Int
+    {
+        guard start + length <= bitString.count else { return 0 }
+        let unsigned =
+            Int(bitString.dropFirst(start).prefix(length), radix: 2) ?? 0
+
+        return unsigned >= (1 << (length - 1))
+            ? unsigned - (1 << length) : unsigned
+    }
+
+    private func getString(
+        _ bitString: String, start: Int, length: Int
+    ) -> String {
+        guard start + length <= bitString.count else { return "" }
+
+        let extractedBits = bitString.dropFirst(start).prefix(length)
+        let sixBitChunks = String(extractedBits).chunked(into: 6)
+        let str = sixBitChunks.compactMap { chunk -> String? in
+            guard let value = Int(chunk, radix: 2) else { return nil }
+            let decodedValue: UInt8
+
+            if value < 32 {
+                decodedValue = UInt8(value) + Character("@").asciiValue!  // Maps to "@" (ASCII 64) through "_" (ASCII 95)
+            } else {
+                decodedValue = UInt8(value)  // Maps to " " (ASCII 32) through "?" (ASCII 63)
+            }
+
+            return String(UnicodeScalar(decodedValue))
+        }.joined()
+
+        return String(str.split(separator: "@").first!)
+            .trimmingCharacters(in: .whitespaces)
+    }
+}
+
+extension String {
+    func chunked(into size: Int) -> [String] {
+        stride(from: 0, to: self.count, by: size).map {
+            let start = self.index(self.startIndex, offsetBy: $0)
+            let end =
+                self.index(start, offsetBy: size, limitedBy: self.endIndex)
+                ?? self.endIndex
+            return String(self[start..<end])
+        }
+    }
+}
