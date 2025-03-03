@@ -342,9 +342,9 @@ class AIVDMDecoder {
         let shipType: Int?
     }
 
-    private var messageBuffer: [Int: String] = [:]
+    private static var messageBuffer: [Int: String] = [:]
 
-    func decode(_ fields: NMEA.Fields) -> AISMessage? {
+    static func decode(_ fields: NMEA.Fields) -> AISMessage? {
         let totalFragments = Int(fields[fields.indices.startIndex + 0]) ?? 1
         let fragmentNumber = Int(fields[fields.indices.startIndex + 1]) ?? 1
         let messageId = Int(fields[fields.indices.startIndex + 2]) ?? 0
@@ -365,7 +365,7 @@ class AIVDMDecoder {
         return decodePayload(fullPayload)
     }
 
-    private func decodePayload(_ payload: String) -> AISMessage? {
+    private static func decodePayload(_ payload: String) -> AISMessage? {
         guard let bitString = dearmor(payload) else {
             return nil
         }
@@ -419,7 +419,7 @@ class AIVDMDecoder {
         )
     }
 
-    private let asciiToBinary: [Character: String] = {
+    private static let asciiToBinary: [Character: String] = {
         let mapping =
             "0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVW`abcdefghijklmnopqrstuvw"
 
@@ -434,7 +434,7 @@ class AIVDMDecoder {
             })
     }()
 
-    private func dearmor(_ payload: String) -> String? {
+    private static func dearmor(_ payload: String) -> String? {
         return payload.reduce(into: Optional("")) { result, char in
             guard let bits = asciiToBinary[char] else {
                 result = nil
@@ -444,7 +444,7 @@ class AIVDMDecoder {
         }
     }
 
-    private func getInt(_ bitString: String, start: Int, length: Int)
+    private static func getInt(_ bitString: String, start: Int, length: Int)
         -> Int
     {
         guard start + length <= bitString.count else { return 0 }
@@ -455,7 +455,7 @@ class AIVDMDecoder {
             ? unsigned - (1 << length) : unsigned
     }
 
-    private func getString(
+    private static func getString(
         _ bitString: String, start: Int, length: Int
     ) -> String {
         guard start + length <= bitString.count else { return "" }
