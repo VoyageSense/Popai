@@ -1,10 +1,23 @@
 import Foundation
 
 class NMEA: ObservableObject {
+    struct Coordinates {
+        let latitude: Double
+        let longitude: Double
+
+        var string: String {
+            String(
+                format: "%05.2f°%@ %06.2f°%@",
+                latitude.magnitude, latitude.isLess(than: 0) ? "S" : "N",
+                longitude.magnitude, longitude.isLess(than: 0) ? "E" : "W")
+        }
+    }
+
     struct State {
         var draft: Meters?
         var headingMagnetic: Double?
         var headingTrue: Double?
+        var position: Coordinates?
     }
 
     @Published var state: State
@@ -65,6 +78,10 @@ class NMEA: ObservableObject {
         self.log = log
         self.recognizedTypes = [
             "DBT": processTransducerDepth,
+            "GGA": ignore,
+            "GLL": processGeographicPosition,
+            "GSA": ignore,
+            "GSV": ignore,
             "HDG": processHeading,
             "HDM": ignore,
             "HDT": ignore,
@@ -259,4 +276,56 @@ private func processHeading(
     let magnetic = sensor + deviation * deviationDir
     state.headingMagnetic = magnetic
     state.headingTrue = magnetic + variation * variationDir
+}
+
+private func processGeographicPosition(
+    _ fields: ArraySlice<Substring>, state: inout NMEA.State
+) {
+    guard fields.count == 7 else {
+        PopAI.log(
+            "Expected seven fields in geographic position sentence, but found \(fields.count)"
+        )
+        return
+    }
+
+    func directionToSign(_ dir: Substring) -> Double? {
+        switch dir {
+        case "N": 1
+        case "S": -1
+        case "W": 1
+        case "E": -1
+        default: nil
+        }
+    }
+
+    func statusIsValid(_ status: Substring) -> Bool? {
+        switch status {
+        case "A": true
+        case "V": false
+        default: nil
+        }
+    }
+
+    let latitude = fields[fields.startIndex]
+    let latitudeDirection = fields[fields.startIndex + 1]
+    let longitude = fields[fields.startIndex + 2]
+    let longitudeDirection = fields[fields.startIndex + 3]
+    let status = fields[fields.startIndex + 5]
+
+    guard
+        let latitudeMagnitude = Double(latitude),
+        let latitudeSign = directionToSign(latitudeDirection),
+        let longitudeMagnitude = Double(longitude),
+        let longitudeSign = directionToSign(longitudeDirection),
+        let valid = statusIsValid(status)
+    else {
+        PopAI.log("Failed to read geographic position from \(fields)")
+        return
+    }
+
+    if valid {
+        state.position = NMEA.Coordinates(
+            latitude: latitudeMagnitude / 100 * latitudeSign,
+            longitude: longitudeMagnitude / 100 * longitudeSign)
+    }
 }

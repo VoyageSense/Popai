@@ -249,6 +249,13 @@ struct PopAIApp: App {
                         where: normalCorrected.contains)
                     {
                         return (corrected, headingReading)
+                    } else if ["position", "coordinates"].contains(
+                        where: normalCorrected.contains)
+                    {
+                        return (
+                            corrected,
+                            nmea.state.position?.string ?? "I don't know"
+                        )
                     } else {
                         return (corrected, nil)
                     }

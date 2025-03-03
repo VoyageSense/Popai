@@ -202,6 +202,13 @@ struct SettingsView: View {
                             && nmea.state.headingTrue == nil
                             ? .secondary : .primary)
                 }
+                HStack {
+                    Text("Position")
+                    Spacer()
+                    Text(nmea.state.position?.string ?? "Unknown")
+                        .foregroundStyle(
+                            nmea.state.position == nil ? .secondary : .primary)
+                }
             }
             Section(header: Text("App")) {
                 TextField("Presented keyword", text: $settings.presentedKeyword)
@@ -296,7 +303,8 @@ struct LogView: View {
             state: NMEA.State(
                 draft: Meters(1),
                 headingMagnetic: 183.7,
-                headingTrue: 196.5),
+                headingTrue: 196.5,
+                position: NMEA.Coordinates(latitude: 37.45, longitude: 122.18)),
             log: NMEA.sampleData),
         conversation: Conversation(
             enabled: true,
