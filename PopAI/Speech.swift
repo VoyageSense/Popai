@@ -15,11 +15,25 @@ class Conversation: NSObject, ObservableObject, SFSpeechRecognitionTaskDelegate,
         }
     }
 
+    struct BeginContext {
+        private let inner: Conversation
+
+        init(inner: Conversation) {
+            self.inner = inner
+        }
+
+        func say(_ message: String) {
+            inner.stopListening()
+            inner.say(message)
+        }
+    }
+
     enum Request {
         case Draft
     }
 
-    typealias RequestHandler = (String) -> (String, String?)
+    typealias StartedListeningHandler = (BeginContext) -> Void
+    typealias HeardHandler = (String) -> (String, String?)
 
     @Published var isEnabled: Bool
     @Published var isListening: Bool = false
@@ -36,7 +50,8 @@ class Conversation: NSObject, ObservableObject, SFSpeechRecognitionTaskDelegate,
     private let speechSynthesizer = AVSpeechSynthesizer()
     private var recognitionRequest: SFSpeechAudioBufferRecognitionRequest?
     private var recognitionTask: SFSpeechRecognitionTask?
-    private var requestHandler: RequestHandler?
+    private var heard: HeardHandler?
+    private var startedListening: StartedListeningHandler?
 
     init(
         enabled: Bool = false, currentRequest: String = "",
@@ -47,8 +62,12 @@ class Conversation: NSObject, ObservableObject, SFSpeechRecognitionTaskDelegate,
         self.pastInteractions = pastInteractions
     }
 
-    func enableSpeech(_ handler: @escaping RequestHandler) {
-        requestHandler = handler
+    func enableSpeech(
+        startedListening: @escaping StartedListeningHandler,
+        _ heard: @escaping HeardHandler
+    ) {
+        self.heard = heard
+        self.startedListening = startedListening
         speechSynthesizer.delegate = self
         SFSpeechRecognizer.requestAuthorization { authStatus in
             switch authStatus {
@@ -90,6 +109,9 @@ class Conversation: NSObject, ObservableObject, SFSpeechRecognitionTaskDelegate,
         } else {
             do {
                 try startListening()
+                if let handler = startedListening {
+                    handler(BeginContext(inner: self))
+                }
             } catch {
                 PopAI.log("Failed to start listening: \(error)")
             }
@@ -150,7 +172,7 @@ class Conversation: NSObject, ObservableObject, SFSpeechRecognitionTaskDelegate,
         _ task: SFSpeechRecognitionTask,
         didHypothesizeTranscription: SFTranscription
     ) {
-        let (request, response) = requestHandler!(
+        let (request, response) = heard!(
             didHypothesizeTranscription.formattedString)
         currentRequest = request
         if let response = response {

@@ -177,7 +177,15 @@ struct PopAIApp: App {
             .onAppear {
                 log("Started app")
 
-                conversation.enableSpeech {
+                conversation.enableSpeech(startedListening: {
+                    (context: Conversation.BeginContext) -> Void in
+                    context.say(
+                        [
+                            "I'm listening",
+                            "How can I help?",
+                            "What's up?",
+                        ].randomElement()!)
+                }) {
                     (transcription: String) -> (String, String?) in
                     log("Heard: \(transcription)")
 
