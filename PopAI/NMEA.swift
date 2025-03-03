@@ -1,6 +1,8 @@
 import Foundation
 
 class NMEA: ObservableObject {
+    typealias Fields = ArraySlice<Substring>
+
     struct Coordinates {
         let latitude: Double
         let longitude: Double
@@ -69,8 +71,7 @@ class NMEA: ObservableObject {
         "!AIVDM,1,1,,A,15MiuGPP5bG?NqlEd2AmUww`0<28,0*44",
     ])
 
-    private let recognizedTypes:
-        [String: (ArraySlice<Substring>, inout NMEA.State) -> Void]
+    private let recognizedTypes: [String: (Fields, inout NMEA.State) -> Void]
     private var unrecognizedTypes: Set<String> = Set()
 
     init(state: State = State(), log: Log = Log()) {
@@ -176,12 +177,10 @@ class NMEA: ObservableObject {
     }
 }
 
-private func ignore(
-    _ fields: ArraySlice<Substring>, _ state: inout NMEA.State
-) {}
+private func ignore(_ fields: NMEA.Fields, _ state: inout NMEA.State) {}
 
 private func processTransducerDepth(
-    _ fields: ArraySlice<Substring>, _ state: inout NMEA.State
+    _ fields: NMEA.Fields, _ state: inout NMEA.State
 ) {
     guard fields.count == 6 else {
         PopAI.log(
@@ -235,9 +234,7 @@ private func processTransducerDepth(
     }
 }
 
-private func processHeading(
-    _ fields: ArraySlice<Substring>, _ state: inout NMEA.State
-) {
+private func processHeading(_ fields: NMEA.Fields, _ state: inout NMEA.State) {
     guard fields.count == 5 else {
         PopAI.log(
             "Expected five fields in heading sentence, but found \(fields.count)"
@@ -279,7 +276,7 @@ private func processHeading(
 }
 
 private func processGeographicPosition(
-    _ fields: ArraySlice<Substring>, state: inout NMEA.State
+    _ fields: NMEA.Fields, state: inout NMEA.State
 ) {
     guard fields.count == 7 else {
         PopAI.log(
@@ -347,7 +344,7 @@ class AIVDMDecoder {
 
     private var messageBuffer: [Int: String] = [:]
 
-    func decode(_ fields: ArraySlice<Substring>) -> AISMessage? {
+    func decode(_ fields: NMEA.Fields) -> AISMessage? {
         let totalFragments = Int(fields[fields.indices.startIndex + 0]) ?? 1
         let fragmentNumber = Int(fields[fields.indices.startIndex + 1]) ?? 1
         let messageId = Int(fields[fields.indices.startIndex + 2]) ?? 0
