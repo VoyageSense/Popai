@@ -57,7 +57,7 @@ class NMEA: ObservableObject {
     ])
 
     private let recognizedTypes:
-        [String: (ArraySlice<Substring>, inout NMEA.State) throws -> Void]
+        [String: (ArraySlice<Substring>, inout NMEA.State) -> Void]
     private var unrecognizedTypes: Set<String> = Set()
 
     init(state: State = State(), log: Log = Log()) {
@@ -146,7 +146,7 @@ class NMEA: ObservableObject {
         }
 
         if let fn = recognizedTypes[String(type)] {
-            try fn(fields.dropFirst(), &self.state)
+            fn(fields.dropFirst(), &self.state)
         } else if unrecognizedTypes.insert(String(type)).inserted {
             PopAI.log("Unrecognized sentence: \(payload)")
         }
@@ -161,11 +161,11 @@ class NMEA: ObservableObject {
 
 private func ignore(
     _ fields: ArraySlice<Substring>, _ state: inout NMEA.State
-) throws {}
+) {}
 
 private func processTransducerDepth(
     _ fields: ArraySlice<Substring>, _ state: inout NMEA.State
-) throws {
+) {
     guard fields.count == 6 else {
         PopAI.log(
             "Expected six fields in transducer-depth sentence, but found \(fields.count)"
@@ -220,7 +220,7 @@ private func processTransducerDepth(
 
 private func processHeading(
     _ fields: ArraySlice<Substring>, _ state: inout NMEA.State
-) throws {
+) {
     guard fields.count == 5 else {
         PopAI.log(
             "Expected five fields in heading sentence, but found \(fields.count)"
