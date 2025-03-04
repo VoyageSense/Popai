@@ -454,7 +454,7 @@ class AIVDMDecoder {
         var shipType: Int? = nil
 
         if messageType == 1 || messageType == 2 || messageType == 3 {
-            navigationStatus = UInt8(getInt(bitString, start: 38, length: 4))
+            navigationStatus = UInt8(getUInt(bitString, start: 38, length: 4))
             speedOverGround =
                 Double(getInt(bitString, start: 50, length: 10)) / 10.0
             longitude =
@@ -518,11 +518,17 @@ class AIVDMDecoder {
         -> Int
     {
         guard start + length <= bitString.count else { return 0 }
-        let unsigned =
-            Int(bitString.dropFirst(start).prefix(length), radix: 2) ?? 0
+        let unsigned = getUInt(bitString, start: start, length: length)
 
         return unsigned >= (1 << (length - 1))
-            ? unsigned - (1 << length) : unsigned
+            ? Int(unsigned) - (1 << length) : Int(unsigned)
+    }
+
+    private static func getUInt(_ bitString: String, start: Int, length: Int)
+        -> UInt
+    {
+        guard start + length <= bitString.count else { return 0 }
+        return UInt(bitString.dropFirst(start).prefix(length), radix: 2) ?? 0
     }
 
     private static func getString(
