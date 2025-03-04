@@ -177,6 +177,8 @@ class NMEA: ObservableObject {
     }
 }
 
+// MARK: Message Handlers
+
 private func ignore(_ fields: NMEA.Fields, _ state: inout NMEA.State) {}
 
 private func processTransducerDepth(
@@ -326,6 +328,8 @@ private func processGeographicPosition(
             longitude: longitudeMagnitude / 100 * longitudeSign)
     }
 }
+
+// MARK: AIVDMDecoder
 
 class AIVDMDecoder {
     struct AISMessage {
