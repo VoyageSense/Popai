@@ -209,6 +209,9 @@ struct SettingsView: View {
                         .foregroundStyle(
                             nmea.state.position == nil ? .secondary : .primary)
                 }
+                NavigationLink(destination: AISView(nmea: nmea)) {
+                    Text("AIS Targets")
+                }
             }
             Section(header: Text("App")) {
                 TextField("Presented keyword", text: $settings.presentedKeyword)
@@ -296,6 +299,101 @@ struct LogView: View {
     }
 }
 
+struct AISView: View {
+    struct AISTargetInfo: Identifiable, Equatable, Hashable {
+        let mmsi: String
+        let info: NMEA.AIS.TargetInfo
+
+        var name: String {
+            info.name ?? ""
+        }
+
+        var lastUpdate: String {
+            info.updatedAt.formatted(date: .omitted, time: .standard)
+        }
+
+        var position: String {
+            info.position?.string ?? "Position Unknown"
+        }
+
+        var id: String {
+            mmsi
+        }
+
+        static func == (left: Self, right: Self) -> Bool {
+            left.mmsi == right.mmsi
+        }
+
+        func hash(into hasher: inout Hasher) {
+            hasher.combine(mmsi)
+        }
+    }
+
+    @ObservedObject var nmea: NMEA
+    @State private var sortOrder = [KeyPathComparator<AISTargetInfo>(\.name)]
+
+    #if os(iOS)
+        @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+        private var isCompact: Bool { horizontalSizeClass == .compact }
+    #else
+        private let isCompact = false
+    #endif
+
+    var body: some View {
+        if isCompact {
+            compact
+        } else {
+            full
+        }
+    }
+
+    var full: some View {
+        Table(
+            nmea.state.ais?.targets.map {
+                AISTargetInfo(mmsi: String($0.key), info: $0.value)
+            }.sorted(using: sortOrder) ?? [],
+            sortOrder: $sortOrder
+        ) {
+            TableColumn("Name", value: \.name, comparator: .lexical)
+            TableColumn("MMSI", value: \.mmsi, comparator: .lexical)
+            TableColumn("Position", value: \.position, comparator: .lexical)
+            TableColumn(
+                "Last Update", value: \.lastUpdate, comparator: .lexical)
+        }
+    }
+
+    var compact: some View {
+        let targets: [AISTargetInfo] =
+            nmea.state.ais?.targets.map {
+                AISTargetInfo(mmsi: String($0.key), info: $0.value)
+            }.sorted(using: sortOrder) ?? []
+
+        return Table(targets, sortOrder: $sortOrder) {
+            TableColumn("Target") { target in
+                VStack {
+                    HStack {
+                        Text(target.name)
+                            .font(.title)
+                            .frame(
+                                maxWidth: .infinity, alignment: .leading)
+                        Text(target.mmsi)
+                            .frame(
+                                maxWidth: .infinity, alignment: .trailing)
+                    }
+                    HStack {
+                        Text(target.lastUpdate)
+                            .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        Text(target.position)
+                            .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity, alignment: .trailing)
+                    }
+                }
+            }
+        }
+    }
+}
+
 #Preview {
     ConversationView(
         appLog: Log(entries: ["2025-02-28T21:28:16.838 | Started app"]),
@@ -304,7 +402,14 @@ struct LogView: View {
                 draft: Meters(1),
                 headingMagnetic: 183.7,
                 headingTrue: 196.5,
-                position: NMEA.Coordinates(latitude: 37.45, longitude: 122.18)),
+                position: NMEA.Coordinates(latitude: 37.45, longitude: 122.18),
+                ais: NMEA.AIS(targets: [
+                    366_900_010: NMEA.AIS.TargetInfo(name: "Alcatraz Flyer"),
+                    366_900_020: NMEA.AIS.TargetInfo(
+                        name: "Ship 2",
+                        position: NMEA.Coordinates(
+                            latitude: 37.45, longitude: 122.18)),
+                ])),
             log: NMEA.sampleData),
         conversation: Conversation(
             enabled: true,
