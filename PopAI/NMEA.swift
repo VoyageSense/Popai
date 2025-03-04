@@ -17,15 +17,20 @@ class NMEA: ObservableObject {
 
     struct AIS {
         struct TargetInfo {
-            let createdAt: Date
-            var updatedAt: Date
-            var name: String
-            var position: Coordinates
+            let createdAt = Date.now
+            var updatedAt = Date.now
+            var name: String?
+            var position: Coordinates?
+
+            init(name: String? = nil, position: Coordinates? = nil) {
+                self.name = name
+                self.position = position
+            }
         }
 
         typealias MMSI = UInt32
 
-        var targets: [MMSI: TargetInfo]
+        var targets: [MMSI: TargetInfo] = [:]
     }
 
     struct State {
@@ -360,26 +365,33 @@ private func processGeographicPosition(
 }
 
 func processAISMessage(_ fields: NMEA.Fields, state: inout NMEA.State) {
-    guard fields.count == 7 else {
+    guard fields.count == 6 else {
         PopAI.log(
-            "Expected seven fields in AIS sentence, but found \(fields.count)"
+            "Expected six fields in AIS sentence, but found \(fields.count)"
         )
         return
     }
 
-    if let ais = AIVDMDecoder.decode(fields.dropFirst()) {
-        if var target = state.ais?.targets[ais.mmsi] {
-            target.updatedAt = Date.now
-            if let name = ais.shipName {
-                target.name = name
-            }
-            if let latitude = ais.latitude,
-                let longitude = ais.longitude
-            {
-                target.position = NMEA.Coordinates(
-                    latitude: latitude, longitude: longitude)
-            }
+    if let entry = AIVDMDecoder.decode(fields) {
+        if state.ais == nil {
+            state.ais = NMEA.AIS()
         }
+
+        var target =
+            state.ais!.targets[entry.mmsi]
+            ?? NMEA.AIS.TargetInfo(name: entry.shipName)
+        target.updatedAt = Date.now
+
+        if let name = entry.shipName {
+            target.name = name
+        }
+
+        if let latitude = entry.latitude, let longitude = entry.longitude {
+            target.position = NMEA.Coordinates(
+                latitude: latitude, longitude: longitude)
+        }
+
+        state.ais!.targets[entry.mmsi] = target
     }
 }
 
