@@ -15,11 +15,25 @@ class NMEA: ObservableObject {
         }
     }
 
+    struct AIS {
+        struct TargetInfo {
+            let createdAt: Date
+            var updatedAt: Date
+            var name: String
+            var position: Coordinates
+        }
+
+        typealias MMSI = UInt32
+
+        var targets: [MMSI: TargetInfo]
+    }
+
     struct State {
         var draft: Meters?
         var headingMagnetic: Double?
         var headingTrue: Double?
         var position: Coordinates?
+        var ais: AIS?
     }
 
     @Published var state: State
@@ -69,6 +83,9 @@ class NMEA: ObservableObject {
         "!AIVDM,1,1,,B,15NH7?PP01o@7C0E`vVf4?wT28Ms,0*3A",
         "!AIVDM,1,1,,B,403OtVQvTWP2koCklLEpHDg028Mw,0*6B",
         "!AIVDM,1,1,,A,15MiuGPP5bG?NqlEd2AmUww`0<28,0*44",
+        "!AIVDM,2,1,5,A,55NDS<`00001L@G??S84h<5A85b0HiTE8000001S1@N55t0Ht008000,0*5A",
+        "!AIVDM,2,2,5,A,0000000000000000,2*11",
+        "!AIVDM,1,1,,A,15NDS<PP1;o?WlvEa9In4gw828ED,0*7D",
     ])
 
     private let recognizedTypes: [String: (Fields, inout NMEA.State) -> Void]
@@ -86,6 +103,7 @@ class NMEA: ObservableObject {
             "HDG": processHeading,
             "HDM": ignore,
             "HDT": ignore,
+            "AIVDM": processAISMessage,
         ]
     }
 
@@ -173,7 +191,19 @@ class NMEA: ObservableObject {
     private func processEncapsulatedSentencePayload(_ payload: Substring)
         throws
     {
+        let fields = payload.split(
+            separator: ",", omittingEmptySubsequences: false)
 
+        guard let marker = fields.first.map(String.init) else {
+            throw ProcessingError.malformedTag
+        }
+
+        if let fn = recognizedTypes[marker] {
+            fn(fields.dropFirst(), &self.state)
+        } else if unrecognizedTypes.insert(marker).inserted {
+            PopAI.log("Unrecognized sentence: \(payload)")
+
+        }
     }
 }
 
@@ -329,13 +359,37 @@ private func processGeographicPosition(
     }
 }
 
+func processAISMessage(_ fields: NMEA.Fields, state: inout NMEA.State) {
+    guard fields.count == 7 else {
+        PopAI.log(
+            "Expected seven fields in AIS sentence, but found \(fields.count)"
+        )
+        return
+    }
+
+    if let ais = AIVDMDecoder.decode(fields.dropFirst()) {
+        if var target = state.ais?.targets[ais.mmsi] {
+            target.updatedAt = Date.now
+            if let name = ais.shipName {
+                target.name = name
+            }
+            if let latitude = ais.latitude,
+                let longitude = ais.longitude
+            {
+                target.position = NMEA.Coordinates(
+                    latitude: latitude, longitude: longitude)
+            }
+        }
+    }
+}
+
 // MARK: AIVDMDecoder
 
 class AIVDMDecoder {
     struct AISMessage {
-        let messageType: Int
-        let mmsi: Int
-        let navigationStatus: Int?
+        let messageType: UInt8
+        let mmsi: NMEA.AIS.MMSI
+        let navigationStatus: UInt8?
         let speedOverGround: Double?
         let longitude: Double?
         let latitude: Double?
@@ -374,10 +428,10 @@ class AIVDMDecoder {
             return nil
         }
 
-        let messageType = getInt(bitString, start: 0, length: 6)
-        let mmsi = getInt(bitString, start: 8, length: 30)
+        let messageType = UInt8(getInt(bitString, start: 0, length: 6))
+        let mmsi = NMEA.AIS.MMSI(getInt(bitString, start: 8, length: 30))
 
-        var navigationStatus: Int? = nil
+        var navigationStatus: UInt8? = nil
         var speedOverGround: Double? = nil
         var longitude: Double? = nil
         var latitude: Double? = nil
@@ -388,7 +442,7 @@ class AIVDMDecoder {
         var shipType: Int? = nil
 
         if messageType == 1 || messageType == 2 || messageType == 3 {
-            navigationStatus = getInt(bitString, start: 38, length: 4)
+            navigationStatus = UInt8(getInt(bitString, start: 38, length: 4))
             speedOverGround =
                 Double(getInt(bitString, start: 50, length: 10)) / 10.0
             longitude =
