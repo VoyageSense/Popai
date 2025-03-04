@@ -93,6 +93,7 @@ class Conversation: NSObject, ObservableObject, SFSpeechRecognitionTaskDelegate,
                 mode: .measurement,
                 options: [
                     .duckOthers,
+                    .defaultToSpeaker,
                 ])
             try audioSession.setActive(
                 true, options: .notifyOthersOnDeactivation)
