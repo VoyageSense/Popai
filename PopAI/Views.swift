@@ -267,26 +267,45 @@ struct LogView: View {
                 }
             }
             Button(action: {
-                showFileExporter = true
-            }) {
-                Text("Save and reset log...")
-                    .padding()
-            }
-            .fileExporter(
-                isPresented: $showFileExporter,
-                document: log,
-                contentType: .plainText,
-                defaultFilename: defaultFilename
-            ) { result in
-                switch result {
-                case .success(let url):
-                    PopAI.log("NMEA logs saved to \(url)")
-                    log.reset()
-                case .failure(let error):
+                let tempDirectory = FileManager.default.temporaryDirectory
+                let fileURL = tempDirectory.appendingPathComponent(
+                    defaultFilename)
+
+                do {
+                    try log.write(to: fileURL)
+
+                    if let windowScene = UIApplication.shared.connectedScenes
+                        .first as? UIWindowScene,
+                        let rootViewController = windowScene.windows.first?
+                            .rootViewController
+                    {
+                        let shareView = UIActivityViewController(
+                            activityItems: [fileURL],
+                            applicationActivities: nil
+                        )
+                        shareView.completionWithItemsHandler = {
+                            activity, success, items, error in
+                            if success {
+                                log.reset()
+                            } else if let error = error {
+                                PopAI.log(
+                                    "Failed to share log '\(name)': \(error.localizedDescription)"
+                                )
+                            } else {
+                                PopAI.log(
+                                    "Sharing of log '\(name)' was canceled")
+                            }
+                        }
+                        rootViewController.present(shareView, animated: true)
+                    }
+                } catch {
+                    PopAI.log("Failed while writing \(name) log to \(fileURL)")
                     lastError = error.localizedDescription
                     showAlert = true
-                    PopAI.log("Failed to save NMEA logs to: \(lastError)")
                 }
+            }) {
+                Text("Share and reset log...")
+                    .padding()
             }
             .alert(isPresented: $showAlert) {
                 Alert(

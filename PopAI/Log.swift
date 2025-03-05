@@ -1,6 +1,4 @@
 import Foundation
-import SwiftUI
-import UniformTypeIdentifiers
 
 func log(_ message: String) {
     let timestamp = Date().formatted(
@@ -14,7 +12,7 @@ func log(_ message: String) {
     print(entry)
 }
 
-class Log: ObservableObject, FileDocument {
+class Log: ObservableObject {
     static let global = Log()
 
     private static let maxEntries = 65536
@@ -42,24 +40,8 @@ class Log: ObservableObject, FileDocument {
         self.entries = []
     }
 
-    // MARK: FileDocument
-
-    static var readableContentTypes: [UTType] { [.plainText] }
-
-    required init(configuration: ReadConfiguration) throws {
-        if let data = configuration.file.regularFileContents,
-            let lines = String(data: data, encoding: .utf8)?.components(
-                separatedBy: .newlines)
-        {
-            entries = lines
-        } else {
-            throw CocoaError(.fileReadCorruptFile)
-        }
-    }
-
-    func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper {
-        return FileWrapper(
-            regularFileWithContents: entries.joined(separator: "\n").data(
-                using: .utf8)!)
+    func write(to: URL) throws {
+        try entries.joined(separator: "\n").write(
+            to: to, atomically: true, encoding: .utf8)
     }
 }
