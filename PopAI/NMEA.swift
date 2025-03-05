@@ -11,7 +11,7 @@ class NMEA: ObservableObject {
             String(
                 format: "%05.2f°%@ %06.2f°%@",
                 latitude.magnitude, latitude.isLess(than: 0) ? "S" : "N",
-                longitude.magnitude, longitude.isLess(than: 0) ? "E" : "W")
+                longitude.magnitude, longitude.isLess(than: 0) ? "W" : "E")
         }
     }
 
@@ -326,8 +326,8 @@ private func processGeographicPosition(
         switch dir {
         case "N": 1
         case "S": -1
-        case "W": 1
-        case "E": -1
+        case "E": 1
+        case "W": -1
         default: nil
         }
     }
