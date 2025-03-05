@@ -37,7 +37,12 @@ class Log: ObservableObject {
     }
 
     func reset() {
-        self.entries = []
+        queue.async(flags: .barrier) {
+            self.entries = []
+            DispatchQueue.main.async {
+                self.objectWillChange.send()
+            }
+        }
     }
 
     func write(to: URL) throws {
