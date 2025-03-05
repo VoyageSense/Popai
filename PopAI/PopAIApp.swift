@@ -165,6 +165,92 @@ struct PopAIApp: App {
         }
     }
 
+    private var closestAheadReading: String {
+        guard let position = nmea.state.position else {
+            return "I don't know our position yet"
+        }
+
+        guard let heading = nmea.state.headingTrue else {
+            return "I don't know our heading yet"
+        }
+
+        guard let vessel = closestAheadOf(position: position, heading: heading)
+        else {
+            return "I don't see anything in front of us on AIS yet"
+        }
+
+        if let name = vessel.name {
+            return "That's the \(name)"
+        } else {
+            return "I don't see a name for it on AIS yet"
+        }
+    }
+
+    private var closestBehindReading: String {
+        guard let position = nmea.state.position else {
+            return "I don't know our position yet"
+        }
+
+        guard let heading = nmea.state.headingTrue else {
+            return "I don't know our heading yet"
+        }
+
+        guard
+            let vessel = closestAheadOf(
+                position: position, heading: fmod(heading + 180, 360))
+        else {
+            return "I don't see anything behind us on AIS yet"
+        }
+
+        if let name = vessel.name {
+            return "That's the \(name)"
+        } else {
+            return "I don't see a name for it on AIS yet"
+        }
+    }
+
+    private func closestAheadOf(
+        position: NMEA.Coordinates, heading: Double, fieldOfView: Double = 45
+    )
+        -> NMEA.AIS.TargetInfo?
+    {
+        let myLat = position.latitude
+        let myLong = position.longitude
+
+        var closest: NMEA.AIS.TargetInfo?
+        var minDistance: Double = .greatestFiniteMagnitude
+
+        for (_, info) in nmea.state.ais?.targets ?? [:] {
+            guard
+                let lat = info.position?.latitude,
+                let long = info.position?.longitude
+            else {
+                continue
+            }
+
+            log("Checking \(info)")
+
+            let dx = (long - myLong) * cos(myLat * .pi / 180)
+            let dy = lat - myLat
+
+            let angle = fmod((atan2(dy, dx) * 180 / .pi) + 360 + 90, 360)  // 0 is East in trig
+
+            let angleDiff =
+                fmod(abs(angle - heading) + 180, 360) - 180
+            log("  Angle: \(angle) (\(angleDiff))")
+
+            if abs(angleDiff) <= fieldOfView {
+                let distance = dx * dx + dy * dy
+                if distance < minDistance {
+                    minDistance = distance
+                    closest = info
+                }
+            }
+        }
+
+        return closest
+    }
+
     var body: some Scene {
         WindowGroup {
             ConversationView(
@@ -256,9 +342,21 @@ struct PopAIApp: App {
                             corrected,
                             nmea.state.position?.string ?? "I don't know"
                         )
-                    } else {
-                        return (corrected, nil)
+                    } else if ["boat", "vessel", "name"].contains(
+                        where: normalCorrected.contains)
+                    {
+                        if ["ahead", "bow"].contains(
+                            where: normalCorrected.contains)
+                        {
+                            return (corrected, closestAheadReading)
+                        } else if ["astern", "behind us", "stern"].contains(
+                            where: normalCorrected.contains)
+                        {
+                            return (corrected, closestBehindReading)
+                        }
                     }
+
+                    return (corrected, nil)
                 }
             }
         }
