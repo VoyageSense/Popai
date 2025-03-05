@@ -92,8 +92,9 @@ class Settings: ObservableObject {
             UserDefaults.standard.string(forKey: "recognizedKeywords")?.split(
                 separator: ","
             ).map(String.init) ?? defaultRecognizedKeywords
-        self.presentedRecognizedKeywords = ""  // This is set by the next assignment
         self.recognizedKeywords = recognizedKeywords
+        self.presentedRecognizedKeywords = recognizedKeywords.joined(
+            separator: ", ")
         self.headingReference =
             HeadingReference(
                 rawValue: UserDefaults.standard.string(
