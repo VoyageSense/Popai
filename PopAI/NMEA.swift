@@ -441,7 +441,7 @@ class AIVDMDecoder {
         }
 
         let messageType = UInt8(getInt(bitString, start: 0, length: 6))
-        let mmsi = NMEA.AIS.MMSI(getInt(bitString, start: 8, length: 30))
+        let mmsi = NMEA.AIS.MMSI(getUInt(bitString, start: 8, length: 30))
 
         var navigationStatus: UInt8? = nil
         var speedOverGround: Double? = nil
