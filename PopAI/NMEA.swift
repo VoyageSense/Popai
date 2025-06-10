@@ -158,7 +158,7 @@ class NMEA: ObservableObject {
         }
 
         guard sum == payload.utf8.reduce(0, ^) else {
-            PopAI.log(
+            Popai.log(
                 "Expected payload sum: \(sum), got \(payload.utf8.reduce(0, ^))"
             )
             throw ProcessingError.invalidChecksum
@@ -189,7 +189,7 @@ class NMEA: ObservableObject {
         if let fn = recognizedTypes[String(type)] {
             fn(fields.dropFirst(), &self.state)
         } else if unrecognizedTypes.insert(String(type)).inserted {
-            PopAI.log("Unrecognized sentence: \(payload)")
+            Popai.log("Unrecognized sentence: \(payload)")
         }
     }
 
@@ -206,7 +206,7 @@ class NMEA: ObservableObject {
         if let fn = recognizedTypes[marker] {
             fn(fields.dropFirst(), &self.state)
         } else if unrecognizedTypes.insert(marker).inserted {
-            PopAI.log("Unrecognized sentence: \(payload)")
+            Popai.log("Unrecognized sentence: \(payload)")
 
         }
     }
@@ -220,7 +220,7 @@ private func processTransducerDepth(
     _ fields: NMEA.Fields, _ state: inout NMEA.State
 ) {
     guard fields.count == 6 else {
-        PopAI.log(
+        Popai.log(
             "Expected six fields in transducer-depth sentence, but found \(fields.count)"
         )
         return
@@ -235,7 +235,7 @@ private func processTransducerDepth(
         let unit = fields[pair.advanced(by: 1)]
 
         guard let measurement = Double(measurement) else {
-            PopAI.log("Malformed measurement: \(measurement)")
+            Popai.log("Malformed measurement: \(measurement)")
             continue
         }
 
@@ -247,7 +247,7 @@ private func processTransducerDepth(
         case "F":
             fathoms = Fathoms(measurement)
         default:
-            PopAI.log("Unrecognized transducer depth unit: \(unit)")
+            Popai.log("Unrecognized transducer depth unit: \(unit)")
         }
     }
 
@@ -267,13 +267,13 @@ private func processTransducerDepth(
     case let (nil, nil, fathoms?):
         state.draft = fathoms.inMeters
     case (nil, nil, nil):
-        PopAI.log("No depth measurements found")
+        Popai.log("No depth measurements found")
     }
 }
 
 private func processHeading(_ fields: NMEA.Fields, _ state: inout NMEA.State) {
     guard fields.count == 5 else {
-        PopAI.log(
+        Popai.log(
             "Expected five fields in heading sentence, but found \(fields.count)"
         )
         return
@@ -303,7 +303,7 @@ private func processHeading(_ fields: NMEA.Fields, _ state: inout NMEA.State) {
         let variation = magnitude(fields[fields.startIndex + 3]),
         let variationDir = directionToMagnitude(fields[fields.startIndex + 4])
     else {
-        PopAI.log("Unable to read heading from \(fields)")
+        Popai.log("Unable to read heading from \(fields)")
         return
     }
 
@@ -316,7 +316,7 @@ private func processGeographicPosition(
     _ fields: NMEA.Fields, state: inout NMEA.State
 ) {
     guard fields.count == 7 else {
-        PopAI.log(
+        Popai.log(
             "Expected seven fields in geographic position sentence, but found \(fields.count)"
         )
         return
@@ -353,7 +353,7 @@ private func processGeographicPosition(
         let longitudeSign = directionToSign(longitudeDirection),
         let valid = statusIsValid(status)
     else {
-        PopAI.log("Failed to read geographic position from \(fields)")
+        Popai.log("Failed to read geographic position from \(fields)")
         return
     }
 
@@ -366,7 +366,7 @@ private func processGeographicPosition(
 
 func processAISMessage(_ fields: NMEA.Fields, state: inout NMEA.State) {
     guard fields.count == 6 else {
-        PopAI.log(
+        Popai.log(
             "Expected six fields in AIS sentence, but found \(fields.count)"
         )
         return

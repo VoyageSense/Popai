@@ -65,7 +65,7 @@ class Settings: ObservableObject {
                 headingReference.rawValue, forKey: "headingReference")
         }
     }
-    let defaultPresentedKeyword = "PopAI"
+    let defaultPresentedKeyword = "Popai"
     let defaultRecognizedKeywords = [
         "popeye", "poppy", "papa", "pape", "bye-bye", "pop ai", "hope",
     ]
@@ -120,7 +120,7 @@ struct Correction {
 }
 
 @main
-struct PopAIApp: App {
+struct PopaiApp: App {
     @StateObject var nmea = NMEA()
     @StateObject var conversation = Conversation()
     @StateObject var settings = Settings()

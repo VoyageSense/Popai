@@ -76,13 +76,13 @@ class Conversation: NSObject, ObservableObject, SFSpeechRecognitionTaskDelegate,
                     self.isEnabled = true
                 }
             case .denied:
-                PopAI.log("Denied access to speech recognition")
+                Popai.log("Denied access to speech recognition")
             case .restricted:
-                PopAI.log("Speech recognition restricted on this device")
+                Popai.log("Speech recognition restricted on this device")
             case .notDetermined:
-                PopAI.log("Speech recognition not yet authorized")
+                Popai.log("Speech recognition not yet authorized")
             @unknown default:
-                PopAI.log("Unknown issue with speech recognition")
+                Popai.log("Unknown issue with speech recognition")
             }
         }
 
@@ -98,7 +98,7 @@ class Conversation: NSObject, ObservableObject, SFSpeechRecognitionTaskDelegate,
             try audioSession.setActive(
                 true, options: .notifyOthersOnDeactivation)
         } catch {
-            PopAI.log("Failed to configure audio session: \(error)")
+            Popai.log("Failed to configure audio session: \(error)")
         }
     }
 
@@ -114,7 +114,7 @@ class Conversation: NSObject, ObservableObject, SFSpeechRecognitionTaskDelegate,
                     handler(BeginContext(inner: self))
                 }
             } catch {
-                PopAI.log("Failed to start listening: \(error)")
+                Popai.log("Failed to start listening: \(error)")
             }
         }
     }
@@ -162,7 +162,7 @@ class Conversation: NSObject, ObservableObject, SFSpeechRecognitionTaskDelegate,
     private func say(_ message: String) {
         let utterance = AVSpeechUtterance(string: message)
         utterance.voice = AVSpeechSynthesisVoice(language: "en-US")
-        PopAI.log("Saying '\(message)'")
+        Popai.log("Saying '\(message)'")
         isTalking = true
         self.speechSynthesizer.speak(utterance)
     }
@@ -200,7 +200,7 @@ class Conversation: NSObject, ObservableObject, SFSpeechRecognitionTaskDelegate,
         do {
             try startListening()
         } catch {
-            PopAI.log("Failed to re-start listening: \(error)")
+            Popai.log("Failed to re-start listening: \(error)")
         }
     }
 
@@ -217,7 +217,7 @@ class Conversation: NSObject, ObservableObject, SFSpeechRecognitionTaskDelegate,
         do {
             try startListening()
         } catch {
-            PopAI.log("Failed to re-start listening: \(error)")
+            Popai.log("Failed to re-start listening: \(error)")
         }
     }
 }

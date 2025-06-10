@@ -288,18 +288,17 @@ struct LogView: View {
                             if success {
                                 log.reset()
                             } else if let error = error {
-                                PopAI.log(
+                                Popai.log(
                                     "Failed to share log '\(name)': \(error.localizedDescription)"
                                 )
                             } else {
-                                PopAI.log(
-                                    "Sharing of log '\(name)' was canceled")
+                                Popai.log("Sharing of log '\(name)' was canceled")
                             }
                         }
                         rootViewController.present(shareView, animated: true)
                     }
                 } catch {
-                    PopAI.log("Failed while writing \(name) log to \(fileURL)")
+                    Popai.log("Failed while writing \(name) log to \(fileURL)")
                     lastError = error.localizedDescription
                     showAlert = true
                 }
@@ -435,10 +434,10 @@ struct AISView: View {
             currentRequest: "",
             pastInteractions: [
                 Conversation.Interaction(
-                    request: "PopAI, what is the current depth?",
+                    request: "Popai, what is the current depth?",
                     response: "2.1 feet"),
                 Conversation.Interaction(
-                    request: "PopAI, what's the draft?",
+                    request: "Popai, what's the draft?",
                     response: "1.9 feet"),
             ]),
         settings: Settings(),
