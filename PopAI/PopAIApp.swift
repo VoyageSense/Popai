@@ -252,6 +252,10 @@ struct PopaiApp: App {
         return closest
     }
 
+    init() {
+        Shortcuts.updateAppShortcutParameters()
+    }
+
     var body: some Scene {
         WindowGroup {
             ConversationView(
